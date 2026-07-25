@@ -1,0 +1,43 @@
+---
+description: Ordered v1 gap roadmap — one gap at a time, prove backend+frontend, admin-configurable where needed
+alwaysApply: true
+---
+
+# Volt Trades — Gap Implementation Protocol
+
+Source: PDF v1.0 + CLAUDE.md + gap audit (Jul 2026). Follow this order. Do not skip ahead.
+
+## Protocol (mandatory)
+
+1. **One gap at a time.** Finish → prove → then next.
+2. **Prove means:** API smoke/unit tests for new endpoints + frontend path works (manual or scripted). Prefer local/`pnpm` tests; rebuild Docker only when user runs Docker.
+3. **Admin-first config.** If a feature needs business details (payment channels, gateway mode, blog, notifications copy), admin UI/settings must let staff set them — secrets stay in env, never in Prisma.
+4. **No inventing product.** Community posts / subscription “plans” are out of PDF v1 scope.
+5. **Money rules unchanged.** Ledger immutable; PAID only via verified webhook or finance confirm-manual; idempotency on financial writes.
+
+## Gap order (current)
+
+| # | Gap | Owner agents | Status |
+|---|-----|--------------|--------|
+| 1 | Deposit modes: manual + online gateway wire; admin toggles; Flutterwave driver when keys present | volt-payments, volt-backend, volt-frontend | DONE |
+| 2 | 2FA for withdraw / high-risk | volt-security-compliance, volt-backend, volt-frontend | DONE |
+| 3 | Academy: quizzes + certificates + S3 video | volt-academy, volt-database, volt-frontend | DONE |
+| 4 | Coupons on course checkout UI | volt-frontend, volt-payments | PENDING |
+| 5 | User support inbox (list + thread) | volt-frontend, volt-backend | PENDING |
+| 6 | Dashboard Projects nav + page | volt-frontend | PENDING |
+| 7 | Accounts IA (wallet vs investment views) | volt-frontend | PENDING |
+| 8 | Blog CMS or honest nav demotion | volt-backend, volt-frontend, volt-database | PENDING |
+| 9 | Admin notifications + Reports | volt-backend, volt-frontend | PENDING |
+| 10 | Phase 6: E2E A–C, backups/monitoring notes, real-money legal gate | volt-qa, volt-launch, volt-security-compliance | PENDING |
+
+Update the Status column in this file when a gap is DONE.
+
+## Gap 1 acceptance
+
+- Admin can enable/disable **manual** and **online** deposit modes in Settings.
+- Manual still uses admin-published bank/MM details + finance confirm.
+- Online calls gateway `createIntent` → checkout URL; PAID only via verified webhook.
+- Secrets (`*_SECRET_KEY`, webhook secrets) only in env.
+- Wallet deposit modal offers only enabled modes.
+- Tests cover deposit-methods shape + gateway webhook verify (mock and/or real driver).
+---

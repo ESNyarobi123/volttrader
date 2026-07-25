@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+.git
+.cursor
+.claude
+docker/data
+**/.DS_Store
+*.md
+*.pdf
+.env*.local
+apps/web/.next
+apps/api/dist
+**/tsconfig.tsbuildinfo

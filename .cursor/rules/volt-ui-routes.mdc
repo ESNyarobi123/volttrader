@@ -1,0 +1,26 @@
+---
+description: Public/dashboard route map and UI expectations from the Volt Trades PDF
+globs: apps/web/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Web routes & UI expectations
+
+## Public routes (must exist / stay wired)
+
+`/`, `/learn`, `/courses/:slug`, `/trading-floor`, `/trading-floor/:slug`, `/projects`, `/projects/:slug`, `/volt-society`, `/about`, `/blog`, `/contact`, `/login`, `/register`, `/terms`, `/privacy`, `/risk-disclosure`.
+
+## Dashboard areas
+
+Overview · Learn (my courses / library / progress / certificates) · Trading Floor (explore / my investments) · Accounts (wallet, transactions) · Projects · Volt Society · Notifications · Support · Settings/Profile.
+
+## CTA language (prefer)
+
+Start Learning · Buy Course · Enter Trading Floor · Explore Opportunity · Invest Now · View Portfolio · Deposit · Withdraw · Join Volt Society.
+
+## UX notes
+
+- Responsive desktop/tablet/mobile; dashboard usable on mobile (drawer/bottom nav ok).
+- Cards, tables, filters, progress, badges, modals, toasts, empty states, skeletons.
+- Spec PDF suggests premium dark fintech; **current shipped brand is light cream + Volt gold** — preserve the established design system unless explicitly asked to rebrand.
+- Never invent guaranteed-return marketing copy on opportunity or portfolio UI.

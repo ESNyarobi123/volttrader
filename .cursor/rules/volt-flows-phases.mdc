@@ -1,0 +1,40 @@
+---
+description: Required user flows, phases, and Definition of Done from the Volt Trades PDF
+alwaysApply: true
+---
+
+# Flows, Phases & Definition of Done
+
+## Critical user flows (must work end-to-end)
+
+**A. Course purchase**  
+Home → Learn → Course detail → Buy → Auth → Checkout → Payment verified → Enrollment → Learn + progress.
+
+**B. Investment**  
+Login → Trading Floor → Opportunity → Terms/Risk → Amount → Confirm → Wallet/Payment verified → Investment record → Portfolio tracks status → Settlement/ledger.
+
+**C. Withdrawal**  
+Dashboard → Wallet → Withdraw → Amount/method → Security check → Request → Admin approval → Process → Completed/Failed → Ledger updated.
+
+**D. Volt Society**  
+Projects → Volt Society → Join/waitlist → Membership record.
+
+## Development phases (PDF)
+
+1. Foundation — brand, public pages, auth, DB, admin base  
+2. Forex Academy — catalogue, detail, checkout, enrollment, progress  
+3. Wallet & Payments — gateway, ledger, deposits, verification  
+4. Trading Floor — opportunities, investments, portfolio  
+5. Projects — pages, roadmap, Volt Shop placeholder, Volt Society  
+6. Security & Launch — tests, pen-test, compliance, backups, monitoring  
+
+## Definition of Done
+
+- Every public CTA works  
+- Every protected route is authenticated  
+- Payments verified server-side  
+- Balances come from ledger logic  
+- Admin can manage content  
+- Critical flows are tested  
+
+When implementing features, map work to the matching phase and DoD checklist. Do not ship “pretty UI” that breaks money, auth, or compliance rules.

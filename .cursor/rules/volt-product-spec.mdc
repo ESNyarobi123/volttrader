@@ -1,0 +1,37 @@
+---
+description: Volt Trades product requirements from the Website Development Spec (v1.0)
+alwaysApply: true
+---
+
+# Volt Trades — Product Spec Memory
+
+Source: `Volt_Trades_Website_Development_Specification.pdf` (v1.0, July 2026).
+Also align with `CLAUDE.md`. Prefer this product model over generic fintech templates.
+
+## Core concept
+
+**LEARN. INVEST. BUILD.**  
+Positioning: Learn Forex · Manage Capital · Explore Opportunities · Build the Future.
+
+Build a **scalable ecosystem**, not a single-page investment website. Modules are connected but independently manageable.
+
+## Two surfaces
+
+1. **Public website** — Home, Learn, Trading Floor, Projects, Volt Society, About, Blog, Contact, legal, Login/Register.
+2. **Authenticated platform** — Dashboard (overview, learn, invest, wallet/accounts, projects, society, notifications, support, settings).
+
+Every public CTA must have a real destination. No dead buttons.
+
+## Core modules
+
+- **Forex Academy** — courses, lessons, quizzes, progress, certificates; free/paid/coupon/access control.
+- **Trading Floor** — admin-configurable opportunities/packages (amount, duration, risk, terms, projection).
+- **Wallet / Accounts** — deposit, course pay, invest, withdraw, transactions; balance from ledger only.
+- **Projects** — roadmap/showcase (Shop, Community, Technology, Education, Events, Future Ventures).
+- **Volt Society** — community mission/values + join/waitlist.
+- **Payments** — gateway abstraction; course / deposit / investment / withdrawal (+ shop later).
+- **Admin + RBAC** — users, KYC, courses, opportunities, investments, payments, projects, coupons, support, reports, audit, settings.
+
+## Stack (locked)
+
+Monorepo: `apps/web` (Next.js) + `apps/api` (NestJS/Fastify modular monolith) + `packages/*`. PostgreSQL + Prisma. S3-compatible object storage. No microservices. Redis only when a real queue/job need exists.

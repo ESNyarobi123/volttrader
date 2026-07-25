@@ -1,0 +1,163 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight } from "lucide-react";
+import type { CoursePlanView, InvestmentPlanView } from "@volt/types";
+import { Button } from "@/components/ui/button";
+import { ForexCoursePlans } from "@/components/site/forex-course-plans";
+import { HeroVideo } from "@/components/site/hero-video";
+import { InvestmentPlans } from "@/components/site/investment-plans";
+import { VoltPath } from "@/components/site/volt-path";
+import { api } from "@/lib/api";
+
+const STATS = [
+  { value: "Learn", label: "Forex Academy" },
+  { value: "Invest", label: "Trading Floor" },
+  { value: "Wallet", label: "Ledger balance" },
+  { value: "Society", label: "Volt community" },
+];
+
+export default function HomePage() {
+  const coursePlansQuery = useQuery({
+    queryKey: ["home", "course-plans"],
+    queryFn: () => api.get<CoursePlanView[]>("/course-plans"),
+  });
+
+  const investmentPlansQuery = useQuery({
+    queryKey: ["home", "investment-plans"],
+    queryFn: () => api.get<InvestmentPlanView[]>("/investment-plans"),
+  });
+
+  return (
+    <div className="min-w-0 overflow-x-hidden">
+      {/* Hero — copy left, framed intro video right */}
+      <section className="relative overflow-hidden border-b border-border">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 hero-gradient"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-24 top-10 h-80 w-80 rounded-full bg-volt/15 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full bg-[hsl(0_0%_10%/0.12)] blur-3xl"
+        />
+
+        <div className="container-page relative grid min-w-0 items-start gap-8 pb-10 pt-10 sm:gap-10 sm:pb-12 sm:pt-12 md:pb-14 md:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:pb-16 lg:pt-16">
+          {/* min-w-0: prevent grid/flex children (marquee w-max) from forcing page overflow */}
+          <div className="flex min-w-0 w-full max-w-full flex-col items-stretch text-left sm:items-start">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-volt-dim">
+              LEARN · INVEST · BUILD
+            </p>
+            <h1 className="w-full max-w-xl break-words font-display text-[1.85rem] font-bold leading-[1.12] tracking-tight sm:text-4xl md:text-5xl lg:text-[3.35rem]">
+              Learn Forex. Manage capital.{" "}
+              <span className="text-volt-dim">Explore opportunities.</span>
+            </h1>
+            <p className="mt-5 w-full max-w-lg text-base leading-relaxed text-muted-foreground md:text-lg">
+              Volt Trades brings education, wallet, and curated trading opportunities into one
+              simple ecosystem — powerful inside, clear outside.
+            </p>
+
+            <div className="mt-8 grid w-full max-w-xl grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:items-stretch sm:gap-3">
+              <Link href="/register" className="min-w-0">
+                <Button
+                  size="lg"
+                  className="h-11 w-full rounded-full px-3 text-sm shadow-volt sm:h-12 sm:px-8 sm:text-base"
+                >
+                  Sign up free
+                  <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+                </Button>
+              </Link>
+              <Link href="/login" className="min-w-0">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-11 w-full rounded-full border-foreground/15 bg-background/80 px-3 text-sm sm:h-12 sm:px-8 sm:text-base"
+                >
+                  Sign in
+                </Button>
+              </Link>
+            </div>
+
+            {/* Learn / Invest / Wallet / Society — horizontal loop R→L */}
+            <div
+              className="relative mt-6 w-full max-w-full overflow-hidden sm:mt-8 sm:max-w-xl"
+              aria-label="Learn, Invest, Wallet, Society"
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent sm:w-10"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent sm:w-10"
+              />
+              <div className="volt-marquee flex w-max max-w-none">
+                {[0, 1].map((copy) => (
+                  <ul
+                    key={copy}
+                    className="flex shrink-0 items-stretch gap-3 pr-3"
+                  >
+                    {STATS.map((stat) => (
+                      <li
+                        key={`${copy}-${stat.value}`}
+                        className="flex w-[7.75rem] shrink-0 flex-col justify-center rounded-2xl border border-border/70 bg-background/70 px-3.5 py-3 shadow-sm backdrop-blur-sm sm:w-[8.5rem] sm:px-4"
+                      >
+                        <span className="font-display text-base font-bold tracking-tight sm:text-lg">
+                          {stat.value}
+                        </span>
+                        <span className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
+                          {stat.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative min-w-0 w-full max-w-full">
+            <HeroVideo />
+          </div>
+        </div>
+      </section>
+
+      <ForexCoursePlans
+        plans={coursePlansQuery.data ?? []}
+        isLoading={coursePlansQuery.isLoading}
+      />
+
+      <InvestmentPlans
+        plans={investmentPlansQuery.data ?? []}
+        isLoading={investmentPlansQuery.isLoading}
+      />
+
+      <VoltPath />
+
+      {/* Closing CTA */}
+      <section className="border-t border-border bg-gradient-to-br from-volt via-volt-hover to-ink py-16 text-white">
+        <div className="container-page flex flex-col items-center gap-6 text-center">
+          <h2 className="max-w-xl font-display text-2xl font-bold tracking-tight md:text-3xl">
+            Ready to learn, invest, and build with Volt Trades?
+          </h2>
+          <p className="max-w-md text-sm text-white/75">
+            Create your free account in minutes — no upfront KYC required to get started.
+          </p>
+          <Link href="/register">
+            <Button
+              size="lg"
+              className="rounded-full bg-white text-ink shadow-lg hover:bg-white/90"
+            >
+              Create your account
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Button>
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}

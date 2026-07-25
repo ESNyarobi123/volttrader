@@ -1,0 +1,38 @@
+---
+description: Money, ledger, payments, and compliance rules from the Volt Trades PDF spec
+alwaysApply: true
+---
+
+# Money & Compliance (non-negotiable)
+
+From the product PDF + `CLAUDE.md`. Violating these is a product/legal failure.
+
+## Ledger
+
+- Balance is **never** a mutable stored column.  
+  `balance = SUM(credits) - SUM(debits)` from `ledger_entries`.
+- `ledger_entries` is **append-only**. No UPDATE/DELETE. Corrections = compensating entries.
+- Money as **integer minor units** + explicit `currency`. No floats.
+- Every money movement is **atomic** inside one `prisma.$transaction` (payment + ledger + enrollment/investment status together).
+
+## Payments
+
+- Frontend **never** confirms payment. Only verified provider webhook/callback (signature-checked).
+- Gateway behind an abstraction (swap provider without rewriting UI).
+- Financial writes need **idempotency** (deposits, investments, withdrawals, webhooks).
+- Withdrawals: request → admin review → processing → completed/failed; each step ledger + audit.
+
+## Compliance copy & product
+
+- **Never** present guaranteed returns. “x5” is a **configurable projection/target**, not hard-coded, not a promise.
+- UI labels only: **Projected Outcome / Target Performance / Historical Performance**.
+- Invest flow must force Terms + Risk disclosure acceptance.
+- Real-money investments gated by `FEATURE_REAL_MONEY_INVESTMENTS` + legal review.
+- Legal pages required: `/terms`, `/privacy`, `/risk-disclosure` (+ refund policy).
+
+## Auth / KYC
+
+- Register: name + email/phone + password + country + terms (KYC-light).
+- KYC at investment/withdrawal point (statuses: Not Started, Pending, Approved, Rejected, Needs More Info).
+- Financial/admin routes: authenticated + RBAC + validated + audit-logged.
+- Roles: `SUPER_ADMIN`, `FINANCE_ADMIN`, `CONTENT_MANAGER`, `SUPPORT_AGENT`, `COMPLIANCE_OFFICER`, `USER`.

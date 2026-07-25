@@ -1,0 +1,38 @@
+{
+  "name": "volt-trades",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Volt Trades — Learn Forex. Manage Capital. Explore Opportunities. Build the Future.",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build:packages": "pnpm --filter \"./packages/*\" build",
+    "predev": "pnpm build:packages",
+    "dev": "dotenv -e .env -- pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm build:packages && dotenv -e .env -- pnpm --filter @volt/api dev",
+    "dev:web": "pnpm build:packages && dotenv -e .env -- pnpm --filter @volt/web dev",
+    "build": "pnpm build:packages && pnpm --filter \"./apps/*\" build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "dotenv -e .env -- pnpm --filter @volt/api db:generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @volt/api db:migrate",
+    "db:seed": "dotenv -e .env -- pnpm --filter @volt/api db:seed",
+    "db:harden": "dotenv -e .env -- pnpm --filter @volt/api db:harden",
+    "db:studio": "dotenv -e .env -- pnpm --filter @volt/api db:studio",
+    "db:setup": "pnpm db:migrate && pnpm db:harden && pnpm db:seed",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f --tail=200",
+    "docker:ps": "docker compose ps",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.2",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

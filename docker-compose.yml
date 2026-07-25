@@ -1,0 +1,186 @@
+# Volt Trades — full local stack (infra + API + web)
+# Host ports default to values that avoid common clashes on this machine
+# (e.g. :3000 often taken → web binds :3001).
+#
+#   pnpm docker:up     # build + start
+#   pnpm docker:down   # stop
+#   pnpm docker:logs   # follow logs
+
+name: volt-trades
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: volt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-volt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-volt_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-volt_trades}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - volt_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-volt} -d ${POSTGRES_DB:-volt_trades}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: volt-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - volt_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: volt-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minio_dev_password}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - volt_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: volt-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        i=0
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do
+          i=$$((i+1))
+          if [ "$$i" -gt 30 ]; then exit 1; fi
+          sleep 1
+        done
+        mc mb -p local/$${S3_BUCKET:-volt-trades} || true
+        mc anonymous set download local/$${S3_BUCKET:-volt-trades} || true
+        echo "MinIO bucket ready"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minio_dev_password}
+      S3_BUCKET: ${S3_BUCKET:-volt-trades}
+    restart: "no"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: volt-mailhog
+    restart: unless-stopped
+    ports:
+      - "${SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: volt-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      mailhog:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      API_PORT: 4000
+      API_HOST: 0.0.0.0
+      API_GLOBAL_PREFIX: api
+      DATABASE_URL: postgresql://${POSTGRES_USER:-volt}:${POSTGRES_PASSWORD:-volt_dev_password}@postgres:5432/${POSTGRES_DB:-volt_trades}?schema=public
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:3000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_me_0123456789abcdef}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me_0123456789abcdef}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-1209600}
+      BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-12}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minio}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minio_dev_password}
+      S3_BUCKET: ${S3_BUCKET:-volt-trades}
+      S3_FORCE_PATH_STYLE: "true"
+      S3_PUBLIC_URL: http://localhost:${MINIO_API_PORT:-9000}/${S3_BUCKET:-volt-trades}
+      PAYMENT_DEFAULT_GATEWAY: ${PAYMENT_DEFAULT_GATEWAY:-mock}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-dev_webhook_signing_secret_change_me}
+      ALLOW_MOCK_PAYMENTS: ${ALLOW_MOCK_PAYMENTS:-true}
+      FLUTTERWAVE_SECRET_KEY: ${FLUTTERWAVE_SECRET_KEY:-}
+      FLUTTERWAVE_PUBLIC_KEY: ${FLUTTERWAVE_PUBLIC_KEY:-}
+      FLUTTERWAVE_WEBHOOK_HASH: ${FLUTTERWAVE_WEBHOOK_HASH:-}
+      FLUTTERWAVE_BASE_URL: ${FLUTTERWAVE_BASE_URL:-https://api.flutterwave.com}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-TZS}
+      MAIL_FROM: ${MAIL_FROM:-Volt Trades <no-reply@volttrades.local>}
+      SMTP_URL: smtp://mailhog:1025
+      SITE_URL: ${SITE_URL:-http://localhost:3001}
+      FEATURE_REAL_MONEY_INVESTMENTS: ${FEATURE_REAL_MONEY_INVESTMENTS:-true}
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3001}
+        NEXT_PUBLIC_BRAND_NAME: ${NEXT_PUBLIC_BRAND_NAME:-Volt Trades}
+        NEXT_PUBLIC_ALLOW_MOCK_PAYMENTS: ${NEXT_PUBLIC_ALLOW_MOCK_PAYMENTS:-true}
+    container_name: volt-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # :3000 is commonly taken by other projects on this machine → default 3001
+      - "${WEB_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOSTNAME: 0.0.0.0
+
+volumes:
+  volt_postgres_data:
+  volt_redis_data:
+  volt_minio_data:

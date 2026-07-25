@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /*
+   * Earnify-inspired system palette — crimson + off-white + near-black.
+   * Values stored as HSL channels (no hsl() wrapper) for Tailwind opacity.
+   *
+   * Brand CTA     #c41e3a
+   * Hover         #a01830
+   * Soft tint     rgba(196, 30, 58, 0.08)
+   * Light accent  #e84d63
+   * Page bg       #f9f9f9
+   * Surfaces      #ffffff
+   * Body text     #1c1c1c
+   * Muted         #6b6b6b
+   * Light text    #9a9a9a
+   * Dark blocks   #1a1a1a
+   * Footer / bars #141414
+   */
+  --background: 0 0% 98%; /* #f9f9f9 */
+  --foreground: 0 0% 11%; /* #1c1c1c */
+  --surface: 0 0% 100%; /* #ffffff */
+  --surface-2: 350 40% 97%; /* soft crimson wash */
+  --border: 0 0% 90%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 42%; /* #6b6b6b */
+
+  /* Brand — crimson */
+  --volt: 350 73% 44%; /* #c41e3a */
+  --volt-foreground: 0 0% 100%; /* white on crimson CTAs */
+  --volt-dim: 349 74% 36%; /* #a01830 — readable links / accents */
+  --volt-hover: 349 74% 36%; /* #a01830 */
+  --volt-light: 351 77% 61%; /* #e84d63 */
+  --volt-soft: 350 73% 44%; /* use with /0.08 opacity */
+
+  /* Dark surfaces */
+  --ink: 0 0% 10%; /* #1a1a1a */
+  --ink-deep: 0 0% 8%; /* #141414 */
+
+  /* Secondary accents (not brand core) */
+  --accent-blue: 206 100% 35%; /* payment blue #0066b3 */
+  --accent-purple: 350 40% 55%; /* soft rose, not purple */
+  --accent-gold: 43 90% 61%; /* #f5c542 stars/ratings */
+  --accent-mint: 148 58% 64%; /* #6dd99a online */
+
+  /* Status */
+  --success: 142 65% 29%; /* #1a7a3a */
+  --danger: 0 100% 45%; /* #e40000 */
+  --warning: 36 92% 55%; /* #f5a623 */
+  --info: 206 100% 35%;
+}
+
+/* Optional dark theme (opt-in via data-theme="dark") ---------------------- */
+:root[data-theme="dark"] {
+  --background: 0 0% 8%; /* #141414 */
+  --foreground: 0 0% 96%;
+  --surface: 0 0% 10%; /* #1a1a1a */
+  --surface-2: 0 0% 14%;
+  --border: 0 0% 20%;
+  --muted: 0 0% 14%;
+  --muted-foreground: 0 0% 60%; /* #9a9a9a */
+  --volt: 350 73% 50%;
+  --volt-foreground: 0 0% 100%;
+  --volt-dim: 351 77% 68%;
+  --volt-hover: 350 73% 44%;
+  --volt-light: 351 77% 61%;
+  --ink: 0 0% 10%;
+  --ink-deep: 0 0% 6%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  /* Soft crimson ambient — top-right, very light */
+  background-image: radial-gradient(
+    115% 90% at 90% -12%,
+    hsl(var(--volt) / 0.08),
+    transparent 55%
+  );
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  /* Headings use the display face with tight tracking, like the reference. */
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Landing hero: soft float only (no spinning carousel) -------------------- */
+@keyframes volt-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes volt-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes volt-slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes volt-nav-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+/* Seamless horizontal loop: track is duplicated; -50% = one full set */
+@keyframes volt-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.volt-float {
+  animation: volt-float 5s ease-in-out infinite;
+}
+.volt-bob {
+  animation: volt-bob 4.2s ease-in-out infinite;
+}
+.volt-slide-in-right {
+  animation: volt-slide-in-right 200ms ease-out;
+}
+.volt-marquee {
+  animation: volt-marquee 22s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .volt-float,
+  .volt-bob,
+  .volt-slide-in-right,
+  .volt-marquee {
+    animation: none;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .card {
+    @apply rounded-2xl border border-border bg-surface p-5 shadow-card;
+  }
+  .stat-tile {
+    @apply rounded-2xl border border-border bg-surface p-4;
+  }
+  /* Soft crimson hero backdrop for landing sections. */
+  .hero-gradient {
+    background-image:
+      radial-gradient(120% 120% at 82% 0%, hsl(var(--volt) / 0.1), transparent 52%),
+      radial-gradient(90% 90% at 0% 0%, hsl(0 0% 100%), transparent 60%);
+  }
+}

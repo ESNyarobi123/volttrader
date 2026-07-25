@@ -1,0 +1,792 @@
+// Volt Trades — Prisma schema
+// Money is stored as BigInt in minor units (e.g. senti/cents) + an explicit currency.
+// `ledger_entries` is APPEND-ONLY: never UPDATE or DELETE a row. Balance is derived.
+// A DB-level trigger enforcing immutability is added in the initial migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================================================
+// Enums (mirror packages/config/src/index.ts exactly)
+// ===========================================================================
+enum UserRole {
+  USER
+  SUPPORT_AGENT
+  CONTENT_MANAGER
+  COMPLIANCE_OFFICER
+  FINANCE_ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum Currency {
+  TZS
+  USD
+  KES
+  UGX
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_MORE_INFO
+}
+
+enum KycDocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVER_LICENSE
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PREMIUM
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AccessType {
+  FREE
+  PAID
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  REVOKED
+}
+
+enum OpportunityStatus {
+  DRAFT
+  OPEN
+  SUSPENDED
+  CLOSED
+}
+
+enum RiskCategory {
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum ProjectionLabel {
+  PROJECTED_OUTCOME
+  TARGET_PERFORMANCE
+  HISTORICAL_PERFORMANCE
+}
+
+enum InvestmentStatus {
+  PENDING
+  ACTIVE
+  MATURED
+  SETTLED
+  CANCELLED
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerEntryType {
+  DEPOSIT
+  COURSE_PURCHASE
+  INVESTMENT_FUNDING
+  INVESTMENT_SETTLEMENT
+  WITHDRAWAL
+  WITHDRAWAL_REVERSAL
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentType {
+  COURSE_PURCHASE
+  WALLET_DEPOSIT
+  INVESTMENT_FUNDING
+  WITHDRAWAL
+  SHOP_PURCHASE
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  UNDER_REVIEW
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+enum WithdrawalMethod {
+  MOBILE_MONEY
+  BANK_TRANSFER
+}
+
+enum ProjectStatus {
+  PLANNED
+  COMING_SOON
+  IN_DEVELOPMENT
+  ACTIVE
+  COMPLETED
+}
+
+enum ProjectCategory {
+  SHOP
+  COMMUNITY
+  TECHNOLOGY
+  EDUCATION
+  EVENTS
+  FUTURE_VENTURES
+}
+
+enum MembershipStatus {
+  WAITLIST
+  ACTIVE
+  SUSPENDED
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  SYSTEM
+  PAYMENT
+  INVESTMENT
+  COURSE
+  SECURITY
+}
+
+// ===========================================================================
+// Identity & Access
+// ===========================================================================
+model User {
+  id            String     @id @default(cuid())
+  fullName      String     @map("full_name")
+  email         String?    @unique
+  phone         String?    @unique
+  passwordHash  String     @map("password_hash")
+  country       String?
+  role          UserRole   @default(USER)
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  /// AES-GCM ciphertext of TOTP secret (never returned to clients).
+  twoFactorSecret  String?   @map("two_factor_secret")
+  twoFactorEnabledAt DateTime? @map("two_factor_enabled_at")
+  kycStatus     KycStatus  @default(NOT_STARTED) @map("kyc_status")
+  acceptedTermsAt DateTime? @map("accepted_terms_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  wallet             Wallet?
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+  kycSubmissions     KycSubmission[]
+  enrollments        Enrollment[]
+  lessonProgress     LessonProgress[]
+  quizResults        QuizResult[]
+  certificates       Certificate[]
+  investments        Investment[]
+  payments           Payment[]
+  withdrawals        Withdrawal[]
+  ledgerEntries      LedgerEntry[]
+  notifications      Notification[]
+  supportTickets     SupportTicket[]
+  ticketMessages     TicketMessage[]
+  communityMember    CommunityMember?
+  auditLogs          AuditLog[]        @relation("ActorAuditLogs")
+
+  @@index([role])
+  @@index([kycStatus])
+  @@map("users")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique // e.g. "payments.approve_withdrawal"
+  description String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         UserRole
+  permissionId String     @map("permission_id")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  userAgent String?  @map("user_agent")
+  ip        String?
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  purpose   String // EMAIL_VERIFY | PASSWORD_RESET
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("verification_tokens")
+}
+
+model KycSubmission {
+  id             String          @id @default(cuid())
+  userId         String          @map("user_id")
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType   KycDocumentType @map("document_type")
+  documentNumber String          @map("document_number")
+  frontImageKey  String          @map("front_image_key")
+  backImageKey   String?         @map("back_image_key")
+  selfieKey      String?         @map("selfie_key")
+  status         KycStatus       @default(PENDING)
+  reviewerNote   String?         @map("reviewer_note")
+  reviewedById   String?         @map("reviewed_by_id")
+  reviewedAt     DateTime?       @map("reviewed_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("kyc_submissions")
+}
+
+// ===========================================================================
+// Forex Academy
+// ===========================================================================
+model Category {
+  id      String   @id @default(cuid())
+  name    String
+  slug    String   @unique
+  courses Course[]
+
+  @@map("categories")
+}
+
+model Course {
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  title            String
+  level            CourseLevel
+  shortDescription String       @map("short_description")
+  description      String
+  learningOutcomes String[]     @map("learning_outcomes")
+  priceAmount      BigInt       @default(0) @map("price_amount")
+  priceCurrency    Currency     @default(TZS) @map("price_currency")
+  accessType       AccessType   @default(PAID) @map("access_type")
+  durationMinutes  Int          @default(0) @map("duration_minutes")
+  thumbnailKey     String?      @map("thumbnail_key")
+  status           CourseStatus @default(DRAFT)
+  categoryId       String?      @map("category_id")
+  category         Category?    @relation(fields: [categoryId], references: [id])
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  lessons      Lesson[]
+  enrollments  Enrollment[]
+  quiz         Quiz?
+  certificates Certificate[]
+
+  @@index([status])
+  @@index([level])
+  @@map("courses")
+}
+
+/// Landing-page Forex course pricing tiers (admin-managed, public fetch).
+model CoursePlan {
+  id            String   @id @default(cuid())
+  name          String
+  subtitle      String
+  priceAmount   BigInt   @default(0) @map("price_amount")
+  priceCurrency Currency @default(TZS) @map("price_currency")
+  /// month | year | once — ignored when price is 0 (shown as Free)
+  billingPeriod String   @default("month") @map("billing_period")
+  features      String[]
+  ctaLabel      String   @default("Get Started") @map("cta_label")
+  ctaHref       String   @default("/register") @map("cta_href")
+  featured      Boolean  @default(false)
+  sortOrder     Int      @default(0) @map("sort_order")
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([published, sortOrder])
+  @@map("course_plans")
+}
+
+/// Landing-page investment pricing tiers (admin-managed, public fetch).
+/// Marketing cards only — real invest flow stays on Opportunity.
+model InvestmentPlan {
+  id                   String          @id @default(cuid())
+  name                 String
+  subtitle             String
+  minAmount            BigInt          @map("min_amount")
+  currency             Currency        @default(TZS)
+  durationDays         Int             @default(30) @map("duration_days")
+  /// Compliant label only — never “guaranteed returns”.
+  projectionLabel      ProjectionLabel @default(TARGET_PERFORMANCE) @map("projection_label")
+  /// Soft highlight e.g. "2.5× target" — configurable, not a promise.
+  projectionHighlight  String          @map("projection_highlight")
+  riskCategory         RiskCategory    @default(MEDIUM) @map("risk_category")
+  features             String[]
+  ctaLabel             String          @default("Explore floor") @map("cta_label")
+  ctaHref              String          @default("/trading-floor") @map("cta_href")
+  featured             Boolean         @default(false)
+  sortOrder            Int             @default(0) @map("sort_order")
+  published            Boolean         @default(false)
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  @@index([published, sortOrder])
+  @@map("investment_plans")
+}
+
+model Lesson {
+  id              String           @id @default(cuid())
+  courseId        String           @map("course_id")
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title           String
+  order           Int
+  videoKey        String?          @map("video_key")
+  content         String?
+  durationSeconds Int              @default(0) @map("duration_seconds")
+  isPreview       Boolean          @default(false) @map("is_preview")
+  progress        LessonProgress[]
+
+  @@unique([courseId, order])
+  @@index([courseId])
+  @@map("lessons")
+}
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId       String           @map("course_id")
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status         EnrollmentStatus @default(ACTIVE)
+  progressPercent Int             @default(0) @map("progress_percent")
+  paymentId      String?          @map("payment_id")
+  startedAt      DateTime         @default(now()) @map("started_at")
+  completedAt    DateTime?        @map("completed_at")
+  expiresAt      DateTime?        @map("expires_at")
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId        String   @map("lesson_id")
+  lesson          Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed       Boolean  @default(false)
+  positionSeconds Int      @default(0) @map("position_seconds")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, lessonId])
+  @@map("lesson_progress")
+}
+
+model Quiz {
+  id        String       @id @default(cuid())
+  courseId  String       @unique @map("course_id")
+  course    Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  /// Minimum percent score required to pass (0–100).
+  passScore Int          @default(70) @map("pass_score")
+  questions Json
+  results   QuizResult[]
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@map("quizzes")
+}
+
+model QuizResult {
+  id        String   @id @default(cuid())
+  quizId    String   @map("quiz_id")
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int
+  passed    Boolean
+  answers   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([quizId, userId])
+  @@map("quiz_results")
+}
+
+model Certificate {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId          String   @map("course_id")
+  course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  certificateNumber String   @unique @map("certificate_number")
+  /// S3 object key for the generated PDF.
+  pdfKey            String?  @map("pdf_key")
+  issuedAt          DateTime @default(now()) @map("issued_at")
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@map("certificates")
+}
+
+// ===========================================================================
+// Trading Floor
+// ===========================================================================
+model Opportunity {
+  id                   String            @id @default(cuid())
+  slug                 String            @unique
+  name                 String
+  summary              String
+  description          String
+  currency             Currency          @default(TZS)
+  minAmount            BigInt            @map("min_amount")
+  maxAmount            BigInt?           @map("max_amount")
+  durationDays         Int               @map("duration_days")
+  // Configurable projection multiplier (e.g. 5 for "x5"). A PROJECTION, never a guarantee.
+  projectionMultiplier Decimal           @default(1) @map("projection_multiplier") @db.Decimal(10, 4)
+  projectionLabel      ProjectionLabel   @default(PROJECTED_OUTCOME) @map("projection_label")
+  riskCategory         RiskCategory      @map("risk_category")
+  riskDisclosure       String            @map("risk_disclosure")
+  terms                String
+  status               OpportunityStatus @default(DRAFT)
+  startDate            DateTime?         @map("start_date")
+  endDate              DateTime?         @map("end_date")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  investments Investment[]
+
+  @@index([status])
+  @@map("opportunities")
+}
+
+model Investment {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  user           User             @relation(fields: [userId], references: [id])
+  opportunityId  String           @map("opportunity_id")
+  opportunity    Opportunity      @relation(fields: [opportunityId], references: [id])
+  principalAmount BigInt          @map("principal_amount")
+  currency       Currency
+  // Snapshot of multiplier at purchase time so later admin edits don't rewrite history.
+  multiplierSnapshot Decimal      @map("multiplier_snapshot") @db.Decimal(10, 4)
+  projectedValue BigInt           @map("projected_value")
+  settledValue   BigInt?          @map("settled_value")
+  status         InvestmentStatus @default(PENDING)
+  paymentId      String?          @map("payment_id")
+  reference      String           @unique
+  maturesAt      DateTime?        @map("matures_at")
+  settledAt      DateTime?        @map("settled_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([opportunityId])
+  @@index([status])
+  @@map("investments")
+}
+
+// ===========================================================================
+// Wallet · Ledger (append-only) · Payments · Withdrawals
+// ===========================================================================
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency  Currency @default(TZS)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ledgerEntries LedgerEntry[]
+
+  @@map("wallets")
+}
+
+/// APPEND-ONLY. Balance = SUM(credit) - SUM(debit). Never update/delete.
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  walletId    String          @map("wallet_id")
+  wallet      Wallet          @relation(fields: [walletId], references: [id])
+  userId      String          @map("user_id")
+  user        User            @relation(fields: [userId], references: [id])
+  direction   LedgerDirection
+  type        LedgerEntryType
+  amount      BigInt // always positive; direction carries the sign
+  currency    Currency
+  // Running balance after this entry, for fast statements. Set once at insert time.
+  balanceAfter BigInt         @map("balance_after")
+  reference   String?
+  paymentId   String?         @map("payment_id")
+  investmentId String?        @map("investment_id")
+  withdrawalId String?        @map("withdrawal_id")
+  metadata    Json?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("ledger_entries")
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  userId         String        @map("user_id")
+  user           User          @relation(fields: [userId], references: [id])
+  type           PaymentType
+  status         PaymentStatus @default(INITIATED)
+  amount         BigInt
+  currency       Currency
+  gateway        String
+  reference      String        @unique
+  providerRef    String?       @map("provider_ref")
+  checkoutUrl    String?       @map("checkout_url")
+  idempotencyKey String?       @unique @map("idempotency_key")
+  // Loose links to what the payment funds (set once verified).
+  courseId       String?       @map("course_id")
+  opportunityId  String?       @map("opportunity_id")
+  metadata       Json?
+  paidAt         DateTime?     @map("paid_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@map("payments")
+}
+
+/// Idempotency guard for provider webhooks — a processed event is never re-applied.
+model ProcessedWebhookEvent {
+  id         String   @id @default(cuid())
+  gateway    String
+  eventId    String   @map("event_id")
+  paymentId  String?  @map("payment_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([gateway, eventId])
+  @@map("processed_webhook_events")
+}
+
+model Withdrawal {
+  id                String           @id @default(cuid())
+  userId            String           @map("user_id")
+  user              User             @relation(fields: [userId], references: [id])
+  amount            BigInt
+  currency          Currency
+  method            WithdrawalMethod
+  destinationMasked String           @map("destination_masked")
+  status            WithdrawalStatus @default(REQUESTED)
+  reviewerNote      String?          @map("reviewer_note")
+  reviewedById      String?          @map("reviewed_by_id")
+  reference         String           @unique
+  idempotencyKey    String?          @unique @map("idempotency_key")
+  processedAt       DateTime?        @map("processed_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("withdrawals")
+}
+
+model Coupon {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  percentOff     Int?      @map("percent_off")
+  amountOff      BigInt?   @map("amount_off")
+  currency       Currency?
+  maxRedemptions Int?      @map("max_redemptions")
+  redemptions    Int       @default(0)
+  expiresAt      DateTime? @map("expires_at")
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("coupons")
+}
+
+// ===========================================================================
+// Projects & Community
+// ===========================================================================
+model Project {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  title       String
+  category    ProjectCategory
+  status      ProjectStatus   @default(PLANNED)
+  summary     String
+  description String
+  coverKey    String?         @map("cover_key")
+  milestones  Json?
+  order       Int             @default(0)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("projects")
+}
+
+model CommunityMember {
+  id         String           @id @default(cuid())
+  userId     String           @unique @map("user_id")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status     MembershipStatus @default(WAITLIST)
+  motivation String?
+  joinedAt   DateTime         @default(now()) @map("joined_at")
+
+  @@map("community_members")
+}
+
+// ===========================================================================
+// Notifications · Support · Audit
+// ===========================================================================
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(SYSTEM)
+  title     String
+  body      String
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([readAt])
+  @@map("notifications")
+}
+
+model SupportTicket {
+  id        String          @id @default(cuid())
+  userId    String          @map("user_id")
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  category  String          @default("GENERAL")
+  status    TicketStatus    @default(OPEN)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  messages  TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id        String        @id @default(cuid())
+  ticketId  String        @map("ticket_id")
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String        @map("author_id")
+  author    User          @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+/// Singleton platform configuration (editable from /admin/settings).
+/// Runtime env flags (e.g. FEATURE_REAL_MONEY_INVESTMENTS) stay in env — shown read-only in UI.
+model PlatformSettings {
+  id                 String   @id @default("default")
+  supportEmail       String?  @map("support_email")
+  supportPhone       String?  @map("support_phone")
+  supportHours       String?  @map("support_hours")
+  maintenanceMode    Boolean  @default(false) @map("maintenance_mode")
+  registrationOpen   Boolean  @default(true) @map("registration_open")
+  communityOpen      Boolean  @default(true) @map("community_open")
+  minDepositMinor    BigInt   @default(100000) @map("min_deposit_minor")
+  minWithdrawalMinor BigInt   @default(500000) @map("min_withdrawal_minor")
+  /// Admin-published channels users use when depositing (manual / bank / mobile money).
+  depositMobileProvider   String? @map("deposit_mobile_provider")
+  depositMobileNumber     String? @map("deposit_mobile_number")
+  depositMobileName       String? @map("deposit_mobile_name")
+  depositBankName         String? @map("deposit_bank_name")
+  depositBankAccount      String? @map("deposit_bank_account")
+  depositBankAccountName  String? @map("deposit_bank_account_name")
+  depositInstructions     String? @map("deposit_instructions")
+  /// Admin toggles which deposit UX paths members see (secrets stay in env).
+  depositManualEnabled Boolean @default(true) @map("deposit_manual_enabled")
+  depositOnlineEnabled Boolean @default(true) @map("deposit_online_enabled")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  updatedById        String?  @map("updated_by_id")
+
+  @@map("platform_settings")
+}
+
+/// APPEND-ONLY audit trail for admin + financial + sensitive actions.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id")
+  actor      User?    @relation("ActorAuditLogs", fields: [actorId], references: [id])
+  action     String // e.g. "withdrawal.approved"
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  ip         String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
