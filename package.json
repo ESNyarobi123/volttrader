@@ -28,6 +28,10 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f --tail=200",
     "docker:ps": "docker compose ps",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.prod down",
+    "docker:prod:logs": "docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f --tail=200",
+    "docker:prod:ps": "docker compose -f docker-compose.prod.yml --env-file .env.prod ps",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {

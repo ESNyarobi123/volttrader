@@ -1,0 +1,21 @@
+{
+	email admin@mandandaspace.com
+}
+
+{$WEB_DOMAIN:mandandaspace.com} {
+	encode gzip zstd
+
+	# Public MinIO objects (path-style): /media/{bucket}/{key}
+	handle_path /media/* {
+		reverse_proxy minio:9000
+	}
+
+	handle {
+		reverse_proxy web:3001
+	}
+}
+
+{$API_DOMAIN:api.mandandaspace.com} {
+	encode gzip zstd
+	reverse_proxy api:4000
+}
