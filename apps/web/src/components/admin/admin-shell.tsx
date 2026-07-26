@@ -90,7 +90,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       if (saved === "0") setExpanded(false);
       if (saved === "1") setExpanded(true);
     } catch {
-      // ignore
+      // Storage can be blocked (private mode); the default layout still works.
     }
     setHydrated(true);
   }, []);
@@ -134,7 +134,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
       } catch {
-        // ignore
+        // Storage can be blocked (private mode); the preference is not critical.
       }
       return next;
     });

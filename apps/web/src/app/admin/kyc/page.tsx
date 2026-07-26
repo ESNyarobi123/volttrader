@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -136,7 +137,8 @@ export default function AdminKycPage() {
     try {
       const full = await api.get<AdminKycSubmission>(`/kyc/${id}`);
       setDetail(full);
-    } catch {
+    } catch (err) {
+      reportRecoveredError("Could not load the full KYC submission", err);
       const fallback = (data ?? []).find((s) => s.id === id) ?? null;
       setDetail(fallback);
     }

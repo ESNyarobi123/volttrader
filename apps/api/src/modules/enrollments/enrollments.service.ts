@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import type { Course, Enrollment } from "@prisma/client";
@@ -12,6 +13,7 @@ import type { CertificateView, CourseSummary, EnrollmentView } from "@volt/types
 type LessonProgressInput = z.infer<typeof lessonProgressSchema>;
 import { PrismaService } from "../../prisma/prisma.service";
 import { toMoney } from "../../common/money";
+import { errorMessage } from "../../common/errors";
 import { CertificatesService } from "./certificates.service";
 
 type CourseWithCount = Course & { _count: { lessons: number } };
@@ -19,6 +21,8 @@ type EnrollmentWithCourse = Enrollment & { course: CourseWithCount };
 
 @Injectable()
 export class EnrollmentsService {
+  private readonly logger = new Logger(EnrollmentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly certificates: CertificatesService,
@@ -69,8 +73,15 @@ export class EnrollmentsService {
     return Promise.all(
       enrollments.map(async (e) => {
         const raw = certByCourse.get(e.courseId);
+        // A certificate whose download URL cannot be presigned (storage down)
+        // must not blank out the whole enrollment list, but it is still a fault.
         const certificate = raw
-          ? await this.certificates.getDownload(userId, raw.id).catch(() => null)
+          ? await this.certificates.getDownload(userId, raw.id).catch((err: unknown) => {
+              this.logger.error(
+                `Could not build download for certificate ${raw.id}: ${errorMessage(err)}`,
+              );
+              return null;
+            })
           : null;
         return this.toView(e, certificate);
       }),

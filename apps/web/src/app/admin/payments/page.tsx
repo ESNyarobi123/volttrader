@@ -42,6 +42,7 @@ import {
 import { currencySchema } from "@volt/validation";
 import type { Money } from "@volt/types";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -315,8 +316,8 @@ export default function AdminPaymentsPage() {
       await navigator.clipboard.writeText(value);
       setCopied(key);
       setTimeout(() => setCopied(null), 1600);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportRecoveredError("Could not copy to the clipboard", err);
     }
   };
 

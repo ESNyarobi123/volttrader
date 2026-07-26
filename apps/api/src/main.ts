@@ -8,6 +8,7 @@ import type { FastifyRequest } from "fastify";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
+import { errorMessage, errorStack } from "./common/errors";
 
 // Money fields are BigInt in Prisma; API money DTOs use `toMoney()` (number).
 // Fallback serializer for any accidental BigInt leak — prefer toMoney() paths.
@@ -70,4 +71,19 @@ async function bootstrap(): Promise<void> {
   new Logger("Bootstrap").log(`Volt Trades API listening on http://${host}:${port}/${prefix}`);
 }
 
-void bootstrap();
+const processLogger = new Logger("Process");
+
+// A rejection or throw outside the request lifecycle would otherwise leave no
+// trace of what failed before the runtime tore the process down.
+process.on("unhandledRejection", (reason: unknown) => {
+  processLogger.error(`Unhandled promise rejection: ${errorMessage(reason)}`, errorStack(reason));
+});
+process.on("uncaughtException", (err: Error) => {
+  processLogger.error(`Uncaught exception: ${err.message}`, err.stack);
+  process.exit(1);
+});
+
+bootstrap().catch((err: unknown) => {
+  new Logger("Bootstrap").error(`API failed to start: ${errorMessage(err)}`, errorStack(err));
+  process.exit(1);
+});

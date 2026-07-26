@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createConnection } from "node:net";
+import { errorMessage, errorStack } from "../../common/errors";
 
 export interface SendMailParams {
   to: string;
@@ -12,7 +13,8 @@ export interface SendMailParams {
 /**
  * Thin SMTP sender for Mailhog / real SMTP. Never logs message bodies that
  * contain tokens in production paths beyond a one-line status; in development
- * we also fall back to console when SMTP is unreachable.
+ * we also fall back to console when SMTP is unreachable. A production send
+ * failure is an error the caller must handle, not a warning.
  */
 @Injectable()
 export class MailService {
@@ -20,11 +22,19 @@ export class MailService {
 
   constructor(private readonly config: ConfigService) {}
 
+  private get isProduction(): boolean {
+    return (this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV) === "production";
+  }
+
   async send(params: SendMailParams): Promise<void> {
     const from = this.config.get<string>("MAIL_FROM") ?? "Volt Trades <no-reply@volttrades.local>";
     const smtpUrl = this.config.get<string>("SMTP_URL");
 
     if (!smtpUrl) {
+      if (this.isProduction) {
+        this.logger.error(`SMTP_URL is not configured; cannot send "${params.subject}"`);
+        throw new ServiceUnavailableException("Email delivery is not configured");
+      }
       this.logger.log(`[mail:noop] to=${params.to} subject=${params.subject}`);
       this.logger.debug(params.text);
       return;
@@ -34,8 +44,18 @@ export class MailService {
       await this.smtpSend(smtpUrl, from, params);
       this.logger.log(`Mail sent to ${params.to}: ${params.subject}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`SMTP send failed (${message}); logging message for local recovery`);
+      if (this.isProduction) {
+        // The body carries reset/verification tokens, so it is never logged here;
+        // the caller decides how to report an undelivered email.
+        this.logger.error(
+          `SMTP send failed for "${params.subject}": ${errorMessage(err)}`,
+          errorStack(err),
+        );
+        throw new ServiceUnavailableException("Could not send the email. Please try again later.");
+      }
+      this.logger.warn(
+        `SMTP send failed (${errorMessage(err)}); logging message for local recovery`,
+      );
       this.logger.log(`[mail:fallback] to=${params.to} subject=${params.subject}\n${params.text}`);
     }
   }

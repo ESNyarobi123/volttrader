@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   CreateBucketCommand,
@@ -11,6 +11,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
 import type { StoragePresignUploadInput } from "@volt/validation";
 import type { StoragePresignView } from "@volt/types";
+import { errorMessage } from "../../common/errors";
 
 const PURPOSE_PREFIX: Record<StoragePresignUploadInput["purpose"], string> = {
   lesson_video: "lessons",
@@ -32,6 +33,7 @@ export class StorageService {
   private readonly client: S3Client;
   /** Presign with browser-reachable endpoint so SigV4 host matches. */
   private readonly signClient: S3Client;
+  private readonly logger = new Logger(StorageService.name);
   private readonly bucket: string;
   private readonly publicBase: string;
   private bucketReady: Promise<void> | null = null;
@@ -46,8 +48,11 @@ export class StorageService {
     let publicOrigin = "http://localhost:9000";
     try {
       publicOrigin = new URL(this.publicBase).origin;
-    } catch {
-      /* keep default */
+    } catch (err) {
+      this.logger.warn(
+        `S3_PUBLIC_URL ("${this.publicBase}") is not a valid URL (${errorMessage(err)}); ` +
+          `presigning against ${publicOrigin} instead`,
+      );
     }
     const credentials = {
       accessKeyId: this.config.get<string>("S3_ACCESS_KEY_ID") ?? "minio",
@@ -77,11 +82,16 @@ export class StorageService {
       this.bucketReady = (async () => {
         try {
           await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-        } catch {
+        } catch (err) {
+          // Only a missing bucket is recoverable by creating it. Credential,
+          // permission and connectivity failures must not be masked as "create it".
+          if (!isBucketMissing(err)) throw err;
+          this.logger.log(`Bucket "${this.bucket}" not found; creating it`);
           await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
         }
-      })().catch((err) => {
+      })().catch((err: unknown) => {
         this.bucketReady = null;
+        this.logger.error(`Object storage is unavailable: ${errorMessage(err)}`);
         throw err;
       });
     }
@@ -140,4 +150,13 @@ export class StorageService {
     if (/^https?:\/\//i.test(key)) return key;
     return `${this.publicBase}/${key.replace(/^\//, "")}`;
   }
+}
+
+/** True only when S3 reports the bucket itself is absent (404 / NotFound). */
+function isBucketMissing(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const name = (err as { name?: string }).name;
+  if (name === "NotFound" || name === "NoSuchBucket") return true;
+  const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+  return status === 404;
 }

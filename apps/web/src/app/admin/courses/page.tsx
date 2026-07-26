@@ -40,6 +40,7 @@ import {
 import { currencySchema } from "@volt/validation";
 import type { CourseSummary } from "@volt/types";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -198,7 +199,10 @@ export default function AdminCoursesPage() {
         durationMinutes: detail.durationMinutes,
         status: detail.status,
       });
-    } catch {
+    } catch (err) {
+      // The editor opens with list data only, so the admin must know the full
+      // course (description, outcomes) was not loaded before saving over it.
+      reportRecoveredError("Could not load the full course; showing partial data", err);
       reset({
         ...emptyDefaults,
         title: course.title,

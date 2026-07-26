@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -226,8 +227,8 @@ export default function AdminAuditPage() {
     try {
       const full = await api.get<AuditRow>(`/admin/audit-logs/${row.id}`);
       setDetail(full);
-    } catch {
-      /* keep list row */
+    } catch (err) {
+      reportRecoveredError("Could not load the full audit event", err);
     }
   };
 

@@ -32,8 +32,9 @@ export class ApiRequestError extends Error {
     message: string,
     public status: number,
     public details?: unknown,
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
     this.name = "ApiRequestError";
   }
 }
@@ -60,24 +61,41 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: "no-store",
     });
-  } catch {
+  } catch (err) {
+    // Keep the original failure reachable via `cause` — the friendly copy alone
+    // makes DNS, CORS and TLS problems indistinguishable.
     throw new ApiRequestError(
       "NETWORK_ERROR",
       "Cannot reach the server. Make sure the API is running (port 4000) and try again.",
       0,
+      undefined,
+      { cause: err },
     );
   }
 
   let json: unknown = {};
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (err) {
+    throw new ApiRequestError(
+      "BAD_RESPONSE",
+      "The connection dropped while reading the server response.",
+      res.status,
+      undefined,
+      { cause: err },
+    );
+  }
   if (text) {
     try {
       json = JSON.parse(text);
-    } catch {
+    } catch (err) {
       throw new ApiRequestError(
         "BAD_RESPONSE",
         res.statusText || "Unexpected response from the server.",
         res.status,
+        undefined,
+        { cause: err },
       );
     }
   }

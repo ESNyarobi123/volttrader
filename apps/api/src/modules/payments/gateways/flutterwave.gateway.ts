@@ -9,6 +9,7 @@ import type {
   WebhookStatus,
   WebhookVerification,
 } from "./payment-gateway.interface";
+import { errorMessage } from "../../../common/errors";
 
 const FAILED: WebhookVerification = { ok: false, eventId: "", providerRef: "", status: "FAILED" };
 
@@ -108,7 +109,12 @@ export class FlutterwaveGateway implements PaymentGateway {
       body: JSON.stringify(body),
     });
 
-    const json = (await res.json().catch(() => null)) as {
+    const json = (await res.json().catch((err: unknown) => {
+      this.logger.warn(
+        `Flutterwave returned an unreadable body (HTTP ${res.status}): ${errorMessage(err)}`,
+      );
+      return null;
+    })) as {
       status?: string;
       message?: string;
       data?: { link?: string; id?: string | number };
@@ -133,14 +139,20 @@ export class FlutterwaveGateway implements PaymentGateway {
   ): WebhookVerification {
     const expected = this.config.get<string>("FLUTTERWAVE_WEBHOOK_HASH")?.trim() ?? "";
     const provided = headerValue(headers, "verif-hash");
-    if (!expected || !provided || !secretsMatch(expected, provided)) {
+    if (!expected) {
+      this.logger.error("Rejected Flutterwave webhook: FLUTTERWAVE_WEBHOOK_HASH is not configured");
+      return FAILED;
+    }
+    if (!provided || !secretsMatch(expected, provided)) {
+      this.logger.warn("Rejected Flutterwave webhook: missing or mismatched verif-hash header");
       return FAILED;
     }
 
     let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(rawBody) as Record<string, unknown>;
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Rejected Flutterwave webhook: body is not valid JSON (${errorMessage(err)})`);
       return FAILED;
     }
 
@@ -149,7 +161,13 @@ export class FlutterwaveGateway implements PaymentGateway {
     const eventId = data.id ?? data.flw_ref ?? parsed.id ?? txRef;
     const status = mapStatus(data.status);
 
-    if (!txRef || !eventId || !status) return FAILED;
+    if (!txRef || !eventId || !status) {
+      this.logger.warn(
+        `Rejected Flutterwave webhook: unusable payload (tx_ref=${String(txRef)}, ` +
+          `eventId=${String(eventId)}, status=${String(data.status)})`,
+      );
+      return FAILED;
+    }
 
     return {
       ok: true,

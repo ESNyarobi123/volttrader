@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   createCipheriv,
@@ -9,6 +9,7 @@ import {
 } from "node:crypto";
 import * as OTPAuth from "otpauth";
 import { BRAND } from "@volt/config";
+import { errorMessage } from "../../common/errors";
 
 const ALGO = "aes-256-gcm";
 
@@ -18,6 +19,8 @@ const ALGO = "aes-256-gcm";
  */
 @Injectable()
 export class TwoFactorService {
+  private readonly logger = new Logger(TwoFactorService.name);
+
   constructor(private readonly config: ConfigService) {}
 
   private encryptionKey(): Buffer {
@@ -81,10 +84,19 @@ export class TwoFactorService {
 
   verifyEncrypted(encryptedSecret: string | null | undefined, code: string): boolean {
     if (!encryptedSecret) return false;
+    let plain: string;
     try {
-      const plain = this.decryptSecret(encryptedSecret);
+      plain = this.decryptSecret(encryptedSecret);
+    } catch (err) {
+      // A stored secret that cannot be decrypted is a configuration problem
+      // (rotated JWT_ACCESS_SECRET, corrupt row), not a wrong code — make it loud.
+      this.logger.error(`Stored 2FA secret could not be decrypted: ${errorMessage(err)}`);
+      return false;
+    }
+    try {
       return this.verify(plain, code);
-    } catch {
+    } catch (err) {
+      this.logger.warn(`TOTP verification failed: ${errorMessage(err)}`);
       return false;
     }
   }

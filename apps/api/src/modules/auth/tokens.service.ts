@@ -1,13 +1,16 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { createHash, randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import type { User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { JwtAccessPayload, JwtRefreshPayload } from "../../common/types";
 
 @Injectable()
 export class TokensService {
+  private readonly logger = new Logger(TokensService.name);
+
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -71,10 +74,20 @@ export class TokensService {
     return this.issueForUser(user, meta);
   }
 
+  /** Idempotent: an unknown token id is already unusable, anything else propagates. */
   async revoke(tokenId: string): Promise<void> {
-    await this.prisma.refreshToken
-      .update({ where: { id: tokenId }, data: { revokedAt: new Date() } })
-      .catch(() => undefined);
+    try {
+      await this.prisma.refreshToken.update({
+        where: { id: tokenId },
+        data: { revokedAt: new Date() },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+        this.logger.debug(`Refresh token ${tokenId} was already gone; nothing to revoke`);
+        return;
+      }
+      throw err;
+    }
   }
 
   async isRefreshActive(tokenId: string): Promise<boolean> {

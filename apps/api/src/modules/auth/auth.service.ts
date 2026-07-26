@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -20,6 +21,8 @@ import type {
 } from "@volt/validation";
 import type { AuthResponse, SessionUser, TwoFactorSetupView } from "@volt/types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { errorMessage, errorStack } from "../../common/errors";
+import type { JwtRefreshPayload } from "../../common/types";
 import { LedgerService } from "../ledger/ledger.service";
 import { AuditService } from "../audit/audit.service";
 import { MailService } from "../mail/mail.service";
@@ -31,6 +34,8 @@ const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokensService,
@@ -195,10 +200,12 @@ export class AuthService {
     const tokens = await this.tokens.issueForUser(user, meta);
     void this.audit
       .log({ actorId: user.id, action: "auth.register", entityType: "User", entityId: user.id, ip: meta?.ip })
-      .catch(() => undefined);
+      .catch((err: unknown) => this.reportBackgroundFailure("audit auth.register", err));
 
     if (user.email) {
-      void this.sendEmailVerification(user).catch(() => undefined);
+      void this.sendEmailVerification(user).catch((err: unknown) =>
+        this.reportBackgroundFailure(`email verification for user ${user.id}`, err),
+      );
     }
 
     return { user: this.toSessionUser(user), tokens };
@@ -238,12 +245,18 @@ export class AuthService {
   }
 
   async logout(refreshToken: string): Promise<void> {
+    let payload: JwtRefreshPayload;
     try {
-      const payload = await this.tokens.verifyRefresh(refreshToken);
-      await this.tokens.revoke(payload.tokenId);
-    } catch {
-      // ignore — logout is best-effort
+      payload = await this.tokens.verifyRefresh(refreshToken);
+    } catch (err) {
+      // An unverifiable token cannot identify a session to revoke; the caller
+      // clears it locally either way, so this is not an error worth failing on.
+      this.logger.debug(`Logout ignored an unverifiable refresh token: ${errorMessage(err)}`);
+      return;
     }
+    // A revoke that fails for any other reason (e.g. database down) must surface:
+    // the session would otherwise stay valid while the user believes it is closed.
+    await this.tokens.revoke(payload.tokenId);
   }
 
   async me(userId: string): Promise<SessionUser> {
@@ -264,12 +277,18 @@ export class AuthService {
       const raw = await this.issueVerificationToken(user.id, "PASSWORD_RESET", PASSWORD_RESET_TTL_MS);
       const siteUrl = this.siteUrl();
       const link = `${siteUrl}/reset-password?token=${encodeURIComponent(raw)}`;
-      await this.mail.send({
-        to: user.email,
-        subject: "Reset your Volt Trades password",
-        text: `Reset your password (expires in 1 hour):\n\n${link}\n\nIf you did not request this, ignore this email.`,
-        html: `<p>Reset your password (expires in 1 hour):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, ignore this email.</p>`,
-      });
+      try {
+        await this.mail.send({
+          to: user.email,
+          subject: "Reset your Volt Trades password",
+          text: `Reset your password (expires in 1 hour):\n\n${link}\n\nIf you did not request this, ignore this email.`,
+          html: `<p>Reset your password (expires in 1 hour):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, ignore this email.</p>`,
+        });
+      } catch (err) {
+        // Surfacing this error would reveal that the identifier exists, so the
+        // response stays generic while the failure is recorded server-side.
+        this.reportBackgroundFailure(`password reset email for user ${user.id}`, err);
+      }
       void this.audit
         .log({
           actorId: user.id,
@@ -277,7 +296,9 @@ export class AuthService {
           entityType: "User",
           entityId: user.id,
         })
-        .catch(() => undefined);
+        .catch((err: unknown) =>
+          this.reportBackgroundFailure("audit auth.password_reset_requested", err),
+        );
     }
 
     return {
@@ -308,7 +329,7 @@ export class AuthService {
         entityType: "User",
         entityId: record.userId,
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => this.reportBackgroundFailure("audit auth.password_reset", err));
 
     return { message: "Password updated. You can sign in with your new password." };
   }
@@ -326,7 +347,7 @@ export class AuthService {
         entityType: "User",
         entityId: record.userId,
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => this.reportBackgroundFailure("audit auth.email_verified", err));
     return { message: "Email verified. Thank you." };
   }
 
@@ -337,6 +358,14 @@ export class AuthService {
     if (user.emailVerified) return { message: "Email is already verified." };
     await this.sendEmailVerification(user);
     return { message: "Verification email sent." };
+  }
+
+  /**
+   * Background work is deliberately not awaited for UX, but a failure still has
+   * to be visible — a lost audit event or verification email must never be silent.
+   */
+  private reportBackgroundFailure(what: string, err: unknown): void {
+    this.logger.error(`Background task failed (${what}): ${errorMessage(err)}`, errorStack(err));
   }
 
   private siteUrl(): string {

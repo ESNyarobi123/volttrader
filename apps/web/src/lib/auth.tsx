@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { AuthResponse, SessionUser } from "@volt/types";
 import type { LoginInput, RegisterInput } from "@volt/validation";
-import { api, tokenStore } from "./api";
+import { api, ApiRequestError, tokenStore } from "./api";
 
 interface AuthState {
   user: SessionUser | null;
@@ -37,8 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await api.get<SessionUser>("/auth/me");
       setUser(me);
-    } catch {
-      tokenStore.clear();
+    } catch (err) {
+      // Only an actual auth rejection invalidates the session; a network or
+      // server fault must not silently sign the user out.
+      const rejected = err instanceof ApiRequestError && (err.status === 401 || err.status === 403);
+      if (rejected) tokenStore.clear();
+      else console.error("Could not load the current session", err);
       setUser(null);
     } finally {
       setLoading(false);
@@ -68,7 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const refreshToken = tokenStore.refresh;
-    if (refreshToken) await api.post("/auth/logout", { refreshToken }, { auth: false }).catch(() => undefined);
+    if (refreshToken) {
+      // Local sign-out always proceeds, but a server-side revoke that failed
+      // means the refresh token may still be usable.
+      await api
+        .post("/auth/logout", { refreshToken }, { auth: false })
+        .catch((err: unknown) => console.error("Server-side logout failed", err));
+    }
     tokenStore.clear();
     setUser(null);
   }, []);
