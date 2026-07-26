@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { PageSpinner } from "@/components/ui/spinner";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
 import { humanize } from "@/lib/status";
