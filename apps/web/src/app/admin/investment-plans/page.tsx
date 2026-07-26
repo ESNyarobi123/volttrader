@@ -52,7 +52,7 @@ const formSchema = z.object({
   currency: currencySchema,
   durationDays: z.coerce.number().int().positive().max(3650),
   projectionLabel: z.enum(projectionLabels),
-  projectionHighlight: z.string().min(1).max(80),
+  projectionMultiplier: z.coerce.number().positive().max(1000),
   riskCategory: z.nativeEnum(RiskCategory),
   featuresText: z.string().min(1, "Add at least one gain/feature (one per line)"),
   ctaLabel: z.string().min(2).max(60),
@@ -70,7 +70,7 @@ const emptyDefaults: FormInput = {
   currency: DEFAULT_CURRENCY,
   durationDays: 60,
   projectionLabel: "TARGET_PERFORMANCE",
-  projectionHighlight: "2.0× target",
+  projectionMultiplier: 2,
   riskCategory: "MEDIUM",
   featuresText: "",
   ctaLabel: "Explore floor",
@@ -116,7 +116,7 @@ export default function AdminInvestmentPlansPage() {
       currency: plan.minAmount.currency,
       durationDays: plan.durationDays,
       projectionLabel: plan.projectionLabel,
-      projectionHighlight: plan.projectionHighlight,
+      projectionMultiplier: plan.projectionMultiplier,
       riskCategory: plan.riskCategory,
       featuresText: plan.features.join("\n"),
       ctaLabel: plan.ctaLabel,
@@ -141,7 +141,8 @@ export default function AdminInvestmentPlansPage() {
         },
         durationDays: values.durationDays,
         projectionLabel: values.projectionLabel,
-        projectionHighlight: values.projectionHighlight,
+        projectionMultiplier: values.projectionMultiplier,
+        projectionHighlight: "",
         riskCategory: values.riskCategory,
         features,
         ctaLabel: values.ctaLabel,
@@ -256,7 +257,8 @@ export default function AdminInvestmentPlansPage() {
                   From {formatMoney(plan.minAmount)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {plan.projectionHighlight} · {plan.durationDays}d · {plan.riskCategory}
+                  Target {formatMoney(plan.projectedTotal)} · {plan.durationDays}d ·{" "}
+                  {plan.riskCategory}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {plan.features.length} gains · order {plan.sortOrder}
@@ -343,12 +345,30 @@ export default function AdminInvestmentPlansPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="projectionHighlight">Highlight</Label>
+                <Label htmlFor="projectionMultiplier">Target multiple (on min entry)</Label>
                 <Input
-                  id="projectionHighlight"
-                  {...form.register("projectionHighlight")}
-                  placeholder="2.5× target"
+                  id="projectionMultiplier"
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  {...form.register("projectionMultiplier")}
+                  placeholder="2"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Members see money total, e.g. min × multiple →{" "}
+                  <span className="font-semibold text-foreground">
+                    {formatMoney({
+                      amount: Math.round(
+                        toMinorUnits(
+                          Number(form.watch("amountMajor") || 0),
+                          form.watch("currency"),
+                        ) * Number(form.watch("projectionMultiplier") || 0),
+                      ),
+                      currency: form.watch("currency"),
+                    })}
+                  </span>{" "}
+                  (target, not a guarantee)
+                </p>
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="featuresText">What you will gain (one per line)</Label>

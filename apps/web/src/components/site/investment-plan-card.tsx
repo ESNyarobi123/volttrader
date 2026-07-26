@@ -102,7 +102,15 @@ export function InvestmentPlanCard({
             featured ? "text-white" : "text-foreground",
           )}
         >
-          {plan.projectionHighlight}
+          {formatMoney(plan.projectedTotal)}
+        </p>
+        <p
+          className={cn(
+            "mt-0.5 text-[10px]",
+            featured ? "text-white/55" : "text-muted-foreground",
+          )}
+        >
+          Target on {formatMoney(plan.minAmount)} entry · not a guarantee
         </p>
       </div>
 

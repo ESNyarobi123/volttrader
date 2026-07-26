@@ -836,12 +836,12 @@ async function main() {
       minAmount: 50000n, // $500.00
       durationDays: 7,
       projectionLabel: "TARGET_PERFORMANCE" as const,
-      projectionHighlight: "2×",
+      projectionHighlight: "",
       riskCategory: "LOW" as const,
       featured: false,
       sortOrder: 0,
       features: [
-        "Projected profit up to 2×",
+        "Projected target up to $1,000 on $500 entry",
         "1-week management cycle",
         "Entry from $500",
         "Risk disclosure before you invest",
@@ -856,12 +856,12 @@ async function main() {
       minAmount: 100000n, // $1,000.00
       durationDays: 14,
       projectionLabel: "PROJECTED_OUTCOME" as const,
-      projectionHighlight: "3×",
+      projectionHighlight: "",
       riskCategory: "MEDIUM" as const,
       featured: false,
       sortOrder: 1,
       features: [
-        "Projected profit up to 3×",
+        "Projected target up to $3,000 on $1,000 entry",
         "2-week management cycle",
         "Entry from $1,000",
         "Hold alongside other plans",
@@ -876,12 +876,12 @@ async function main() {
       minAmount: 250000n, // $2,500.00
       durationDays: 30,
       projectionLabel: "TARGET_PERFORMANCE" as const,
-      projectionHighlight: "4×",
+      projectionHighlight: "",
       riskCategory: "HIGH" as const,
       featured: true,
       sortOrder: 2,
       features: [
-        "Projected profit up to 4×",
+        "Projected target up to $10,000 on $2,500 entry",
         "30-day management cycle",
         "Entry from $2,500",
         "Hold alongside other plans",
@@ -896,12 +896,12 @@ async function main() {
       minAmount: 500000n, // $5,000.00
       durationDays: 60,
       projectionLabel: "HISTORICAL_PERFORMANCE" as const,
-      projectionHighlight: "5×",
+      projectionHighlight: "",
       riskCategory: "VERY_HIGH" as const,
       featured: false,
       sortOrder: 3,
       features: [
-        "Projected profit up to 5×",
+        "Projected target up to $25,000 on $5,000 entry",
         "60-day management cycle",
         "Entry from $5,000",
         "Hold alongside other plans",
@@ -919,6 +919,7 @@ async function main() {
       currency: "USD" as const,
       durationDays: plan.durationDays,
       projectionLabel: plan.projectionLabel,
+      projectionMultiplier: plan.multiplier,
       projectionHighlight: plan.projectionHighlight,
       riskCategory: plan.riskCategory,
       features: plan.features,

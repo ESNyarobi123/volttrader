@@ -454,7 +454,10 @@ export const investmentPlanUpsertSchema = strictObject({
     "TARGET_PERFORMANCE",
     "HISTORICAL_PERFORMANCE",
   ]),
-  projectionHighlight: z.string().min(1).max(80),
+  /** Target multiple on min entry (e.g. 2 → $1,000 when min is $500). Not a guarantee. */
+  projectionMultiplier: z.number().positive().max(1000),
+  /** Optional admin note; public cards show money from min × multiplier. */
+  projectionHighlight: z.string().max(80).optional().default(""),
   riskCategory: z.nativeEnum(RiskCategory),
   features: z.array(z.string().min(1).max(160)).min(1).max(20),
   ctaLabel: z.string().min(2).max(60).default("Explore floor"),

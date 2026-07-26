@@ -16,6 +16,8 @@ export interface InvestmentPlanView {
   minAmount: { amount: number; currency: Currency };
   durationDays: number;
   projectionLabel: ProjectionLabel;
+  projectionMultiplier: number;
+  projectedTotal: { amount: number; currency: Currency };
   projectionHighlight: string;
   riskCategory: RiskCategory;
   features: string[];
@@ -44,17 +46,29 @@ export class InvestmentPlansService {
     private readonly audit: AuditService,
   ) {}
 
+  private multiplierOf(plan: InvestmentPlan): number {
+    return Number(plan.projectionMultiplier);
+  }
+
   private toView(plan: InvestmentPlan): InvestmentPlanView {
+    const multiplier = this.multiplierOf(plan);
+    const minAmount = Number(plan.minAmount);
+    const projectedAmount = Math.round(minAmount * multiplier);
     return {
       id: plan.id,
       name: plan.name,
       subtitle: plan.subtitle,
       minAmount: {
-        amount: Number(plan.minAmount),
+        amount: minAmount,
         currency: plan.currency,
       },
       durationDays: plan.durationDays,
       projectionLabel: plan.projectionLabel,
+      projectionMultiplier: multiplier,
+      projectedTotal: {
+        amount: projectedAmount,
+        currency: plan.currency,
+      },
       projectionHighlight: plan.projectionHighlight,
       riskCategory: plan.riskCategory,
       features: plan.features,
@@ -66,6 +80,37 @@ export class InvestmentPlansService {
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
     };
+  }
+
+  /** Keep the investable opportunity package in sync with the landing plan. */
+  private async syncCanonicalOpportunity(plan: InvestmentPlan) {
+    const slug = `plan-${plan.name.toLowerCase().replace(/\s+/g, "-")}`;
+    const riskDisclosure =
+      "Capital is at risk. Projected outcomes are targets only and are not guaranteed. Past or modelled performance does not predict future results.";
+    const terms =
+      "By investing you accept the risk disclosure, platform terms, and that returns (if any) are settled after the management cycle ends.";
+    const data = {
+      name: plan.name,
+      summary: plan.subtitle,
+      description: `${plan.name} management plan — ${plan.subtitle}. Cycle: ${plan.durationDays} days.`,
+      currency: plan.currency,
+      minAmount: plan.minAmount,
+      maxAmount: null as bigint | null,
+      durationDays: plan.durationDays,
+      projectionMultiplier: plan.projectionMultiplier,
+      projectionLabel: plan.projectionLabel,
+      riskCategory: plan.riskCategory,
+      riskDisclosure,
+      terms,
+      status: "OPEN" as const,
+      investmentPlanId: plan.id,
+    };
+    const existing = await this.prisma.opportunity.findUnique({ where: { slug } });
+    if (existing) {
+      await this.prisma.opportunity.update({ where: { id: existing.id }, data });
+    } else {
+      await this.prisma.opportunity.create({ data: { slug, ...data } });
+    }
   }
 
   async listPublished(): Promise<InvestmentPlanView[]> {
@@ -96,7 +141,8 @@ export class InvestmentPlansService {
         currency: input.minAmount.currency,
         durationDays: input.durationDays,
         projectionLabel: input.projectionLabel,
-        projectionHighlight: input.projectionHighlight,
+        projectionMultiplier: input.projectionMultiplier,
+        projectionHighlight: input.projectionHighlight ?? "",
         riskCategory: input.riskCategory,
         features: input.features,
         ctaLabel: input.ctaLabel,
@@ -106,6 +152,8 @@ export class InvestmentPlansService {
         published: input.published,
       },
     });
+
+    await this.syncCanonicalOpportunity(plan);
 
     await this.audit.log({
       actorId,
@@ -141,6 +189,7 @@ export class InvestmentPlansService {
           "subtitle",
           "durationDays",
           "projectionLabel",
+          "projectionMultiplier",
           "projectionHighlight",
           "riskCategory",
           "features",
@@ -158,6 +207,8 @@ export class InvestmentPlansService {
           : {}),
       },
     });
+
+    await this.syncCanonicalOpportunity(plan);
 
     await this.audit.log({
       actorId,

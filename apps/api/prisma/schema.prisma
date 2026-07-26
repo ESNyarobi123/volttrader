@@ -412,7 +412,9 @@ model InvestmentPlan {
   durationDays         Int             @default(30) @map("duration_days")
   /// Compliant label only — never “guaranteed returns”.
   projectionLabel      ProjectionLabel @default(TARGET_PERFORMANCE) @map("projection_label")
-  /// Soft highlight e.g. "2.5× target" — configurable, not a promise.
+  /// Target multiple on min entry (e.g. 2 → show $1,000 when min is $500). Not a guarantee.
+  projectionMultiplier Decimal         @default(1) @map("projection_multiplier") @db.Decimal(10, 4)
+  /// Optional admin note / legacy text; public cards show money total from min × multiplier.
   projectionHighlight  String          @map("projection_highlight")
   riskCategory         RiskCategory    @default(MEDIUM) @map("risk_category")
   features             String[]

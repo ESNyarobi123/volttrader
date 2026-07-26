@@ -385,12 +385,14 @@ export default function DashboardInvestPage() {
           {selected ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-volt/20 bg-volt/5 px-3 py-2.5 text-sm">
-                <p className="font-semibold">{selected.projectionHighlight} projected</p>
+                <p className="font-semibold">
+                  Projected target {formatMoney(selected.projectedTotal)}
+                </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {selected.durationDays % 7 === 0
                     ? `${selected.durationDays / 7}-week`
                     : `${selected.durationDays}-day`}{" "}
-                  cycle · from {formatMoney(selected.minAmount)}
+                  cycle · from {formatMoney(selected.minAmount)} · not a guarantee
                 </p>
               </div>
 

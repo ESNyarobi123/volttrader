@@ -171,6 +171,10 @@ export interface InvestmentPlanView {
   minAmount: Money;
   durationDays: number;
   projectionLabel: "PROJECTED_OUTCOME" | "TARGET_PERFORMANCE" | "HISTORICAL_PERFORMANCE";
+  /** Target multiple on min entry — UI shows money total, never as a guarantee. */
+  projectionMultiplier: number;
+  /** Projected total at min entry = minAmount × multiplier (display helper). */
+  projectedTotal: Money;
   projectionHighlight: string;
   riskCategory: "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH";
   features: string[];
