@@ -24,7 +24,34 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   SUPPORT_AGENT: ["users.manage"],
 };
 
-const DEMO_USER_PASSWORD = "User@12345";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * Demo credentials. Dev keeps fixed passwords for convenience; production must
+ * supply its own (see {@link assertSeedAllowed}) so no deployment ends up with a
+ * super admin whose password is published in this repository.
+ */
+function seedPassword(envKey: string, devDefault: string): string {
+  const fromEnv = process.env[envKey]?.trim();
+  if (fromEnv) return fromEnv;
+  if (IS_PRODUCTION) throw new Error(`${envKey} must be set when seeding a production database`);
+  return devDefault;
+}
+
+/**
+ * This script writes demo users, payments and ledger entries. Running it against
+ * a live database is destructive-by-accident, so production requires an explicit
+ * opt-in on top of the per-account passwords above.
+ */
+function assertSeedAllowed(): void {
+  if (!IS_PRODUCTION) return;
+  if (process.env.SEED_ALLOW_PRODUCTION !== "true") {
+    throw new Error(
+      "Refusing to seed demo data with NODE_ENV=production. Set SEED_ALLOW_PRODUCTION=true (plus SEED_ADMIN_PASSWORD / SEED_STAFF_PASSWORD / SEED_DEMO_PASSWORD) if this is really intended.",
+    );
+  }
+}
+
 const RISK =
   "Trading and investment involve substantial risk of loss. Projected outcomes are targets, NOT guarantees. Past performance does not guarantee future results. Only invest what you can afford to lose.";
 const TERMS =
@@ -225,6 +252,11 @@ async function upsertPayment(data: {
 }
 
 async function main() {
+  assertSeedAllowed();
+  const ADMIN_PASSWORD = seedPassword("SEED_ADMIN_PASSWORD", "Admin@12345");
+  const STAFF_PASSWORD = seedPassword("SEED_STAFF_PASSWORD", "Staff@12345");
+  const DEMO_USER_PASSWORD = seedPassword("SEED_DEMO_PASSWORD", "User@12345");
+
   console.log("Seeding Volt Trades demo data…");
 
   // --- Permissions + role mappings ---
@@ -283,7 +315,7 @@ async function main() {
 
   // --- Super admin ---
   const adminEmail = "admin@volttrades.local";
-  const adminPasswordHash = await bcrypt.hash("Admin@12345", 12);
+  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
@@ -305,7 +337,7 @@ async function main() {
   });
 
   // Light staff accounts for admin RBAC demos
-  const staffPassword = await bcrypt.hash("Staff@12345", 12);
+  const staffPassword = await bcrypt.hash(STAFF_PASSWORD, 12);
   const finance = await prisma.user.upsert({
     where: { email: "finance@volttrades.local" },
     update: {},
@@ -1780,9 +1812,9 @@ async function main() {
   }
 
   console.log("\nSeed complete.\n");
-  console.log("Admin:   admin@volttrades.local / Admin@12345");
-  console.log("Finance: finance@volttrades.local / Staff@12345");
-  console.log("Support: support@volttrades.local / Staff@12345");
+  console.log(`Admin:   admin@volttrades.local / ${ADMIN_PASSWORD}`);
+  console.log(`Finance: finance@volttrades.local / ${STAFF_PASSWORD}`);
+  console.log(`Support: support@volttrades.local / ${STAFF_PASSWORD}`);
   console.log(`Members: ${DEMO_USERS[0].email} … ${DEMO_USERS[9].email} / ${DEMO_USER_PASSWORD}`);
   console.log(`Showcase: msume@gmail.com / ${DEMO_USER_PASSWORD}`);
   console.log(

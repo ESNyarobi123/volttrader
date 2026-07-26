@@ -79,7 +79,10 @@ services:
           sleep 1
         done
         mc mb -p local/$${S3_BUCKET:-volt-trades} || true
-        mc anonymous set download local/$${S3_BUCKET:-volt-trades} || true
+        # Only course thumbnails are public. KYC documents, certificates and
+        # lesson videos are served through short-lived presigned URLs.
+        mc anonymous set none local/$${S3_BUCKET:-volt-trades} || true
+        mc anonymous set download local/$${S3_BUCKET:-volt-trades}/thumbnails || true
         echo "MinIO bucket ready"
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minio}
