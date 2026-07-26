@@ -24,6 +24,7 @@ import { CommunityModule } from "./modules/community/community.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { SupportModule } from "./modules/support/support.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { LandingModule } from "./modules/landing/landing.module";
 import { StorageModule } from "./modules/storage/storage.module";
 
 @Module({
@@ -61,6 +62,7 @@ import { StorageModule } from "./modules/storage/storage.module";
     NotificationsModule,
     SupportModule,
     AdminModule,
+    LandingModule,
   ],
 })
 export class AppModule {}

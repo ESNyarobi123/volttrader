@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   Settings,
   ScrollText,
+  LayoutTemplate,
   LogOut,
   Menu,
   X,
@@ -40,6 +41,7 @@ const STORAGE_KEY = "volt-admin-sidebar-expanded";
 
 const NAV: { href: string; label: string; icon: LucideIcon; group: string }[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, group: "General" },
+  { href: "/admin/landing", label: "Landing page", icon: LayoutTemplate, group: "Catalogue" },
   { href: "/admin/courses", label: "Courses", icon: GraduationCap, group: "Catalogue" },
   { href: "/admin/course-plans", label: "Course plans", icon: Sparkles, group: "Catalogue" },
   { href: "/admin/investment-plans", label: "Invest plans", icon: TrendingUp, group: "Catalogue" },

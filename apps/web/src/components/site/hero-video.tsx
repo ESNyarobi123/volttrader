@@ -1,15 +1,24 @@
 "use client";
 
-const YOUTUBE_ID = "xHU5MHuUSKI";
+import { useState } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
-/** Autoplay + loop + muted; chrome minimized. Mute is required for browser autoplay. */
-const EMBED_SRC =
-  `https://www.youtube-nocookie.com/embed/${YOUTUBE_ID}` +
-  `?autoplay=1&mute=1&loop=1&playlist=${YOUTUBE_ID}` +
-  `&controls=0&modestbranding=1&rel=0&playsinline=1` +
-  `&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0`;
+const DEFAULT_YOUTUBE_ID = "nMzMlm-F_yA";
 
-export function HeroVideo() {
+function embedSrc(youtubeId: string, muted: boolean) {
+  /** Autoplay works reliably when muted; sound starts after a tap (browser policy). */
+  return (
+    `https://www.youtube-nocookie.com/embed/${youtubeId}` +
+    `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${youtubeId}` +
+    `&controls=0&modestbranding=1&rel=0&playsinline=1` +
+    `&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0`
+  );
+}
+
+export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: string }) {
+  const id = youtubeId.trim() || DEFAULT_YOUTUBE_ID;
+  const [muted, setMuted] = useState(true);
+
   return (
     <div className="relative mx-auto w-full min-w-0 max-w-full overflow-hidden px-1 sm:px-2 lg:max-w-none">
       <div
@@ -43,8 +52,9 @@ export function HeroVideo() {
 
           <div className="relative aspect-video w-full max-w-full overflow-hidden">
             <iframe
+              key={`${id}-${muted ? "m" : "u"}`}
               title="Volt Trades intro"
-              src={EMBED_SRC}
+              src={embedSrc(id, muted)}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen={false}
               loading="eager"
@@ -60,6 +70,25 @@ export function HeroVideo() {
               aria-hidden
               className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-ink/55 to-transparent sm:h-16"
             />
+
+            <button
+              type="button"
+              onClick={() => setMuted((v) => !v)}
+              className="absolute bottom-3 right-3 z-30 inline-flex items-center gap-2 rounded-full border border-white/20 bg-ink/80 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur transition hover:bg-ink sm:bottom-4 sm:right-4"
+              aria-label={muted ? "Turn sound on" : "Mute video"}
+            >
+              {muted ? (
+                <>
+                  <VolumeX className="h-4 w-4 text-volt" aria-hidden />
+                  Tap for sound
+                </>
+              ) : (
+                <>
+                  <Volume2 className="h-4 w-4 text-volt" aria-hidden />
+                  Sound on
+                </>
+              )}
+            </button>
           </div>
 
           <div className="relative flex min-w-0 items-center justify-between gap-2 border-t border-white/10 bg-gradient-to-r from-[hsl(0_0%_10%)] via-[hsl(0_0%_12%)] to-[hsl(350_30%_14%)] px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3">

@@ -495,3 +495,45 @@ export const platformSettingsUpdateSchema = strictObject({
   depositOnlineEnabled: z.boolean().optional(),
 });
 export type PlatformSettingsUpdateInput = z.infer<typeof platformSettingsUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// Landing page content (admin)
+// ---------------------------------------------------------------------------
+export const landingStatSchema = strictObject({
+  value: z.string().min(1).max(40),
+  label: z.string().min(1).max(80),
+});
+
+/** Accepts a YouTube watch/embed/share URL or a bare 11-char video id. */
+export const youtubeVideoInputSchema = z
+  .string()
+  .min(6)
+  .max(200)
+  .refine((value) => {
+    const trimmed = value.trim();
+    if (/^[\w-]{11}$/.test(trimmed)) return true;
+    if (/youtu\.be\/([\w-]{11})/.test(trimmed)) return true;
+    if (/[?&]v=([\w-]{11})/.test(trimmed)) return true;
+    if (/youtube(?:-nocookie)?\.com\/(?:embed|shorts)\/([\w-]{11})/.test(trimmed)) return true;
+    return false;
+  }, "Enter a valid YouTube URL or video id");
+
+export const landingPageUpdateSchema = strictObject({
+  /** Full YouTube URL or 11-char id — API stores the id only. */
+  heroYoutubeUrl: youtubeVideoInputSchema.optional(),
+  heroEyebrow: z.string().min(2).max(80).optional(),
+  heroHeadline: z.string().min(4).max(200).optional(),
+  heroHeadlineAccent: z.string().max(160).nullable().optional(),
+  heroSubcopy: z.string().min(10).max(800).optional(),
+  ctaPrimaryLabel: z.string().min(2).max(60).optional(),
+  ctaPrimaryHref: z.string().min(1).max(200).optional(),
+  ctaSecondaryLabel: z.string().min(2).max(60).optional(),
+  ctaSecondaryHref: z.string().min(1).max(200).optional(),
+  stats: z.array(landingStatSchema).min(1).max(8).optional(),
+  closingHeadline: z.string().min(4).max(240).optional(),
+  closingSubcopy: z.string().min(4).max(500).optional(),
+  closingCtaLabel: z.string().min(2).max(60).optional(),
+  closingCtaHref: z.string().min(1).max(200).optional(),
+});
+export type LandingPageUpdateInput = z.infer<typeof landingPageUpdateSchema>;
+

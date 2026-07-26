@@ -64,6 +64,7 @@ const FILTERS: { id: SearchFilter; label: string }[] = [
 
 const PAGES: SearchHit[] = [
   { id: "p-admin", type: "pages", title: "Overview", subtitle: "System analytics dashboard", href: "/admin" },
+  { id: "p-landing", type: "pages", title: "Landing page", subtitle: "Home hero copy & intro video", href: "/admin/landing" },
   { id: "p-courses", type: "pages", title: "Courses", subtitle: "Forex Academy catalogue", href: "/admin/courses" },
   { id: "p-opps", type: "pages", title: "Opportunities", subtitle: "Trading Floor catalogue", href: "/admin/opportunities" },
   { id: "p-projects", type: "pages", title: "Projects", subtitle: "Roadmap & builds", href: "/admin/projects" },

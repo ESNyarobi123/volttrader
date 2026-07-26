@@ -126,6 +126,25 @@ export interface CourseDetail extends CourseSummary {
   certificate: CertificateView | null;
 }
 
+/** Public landing hero + closing CTA copy (admin-managed singleton). */
+export interface LandingPageView {
+  heroYoutubeId: string;
+  heroEyebrow: string;
+  heroHeadline: string;
+  heroHeadlineAccent: string | null;
+  heroSubcopy: string;
+  ctaPrimaryLabel: string;
+  ctaPrimaryHref: string;
+  ctaSecondaryLabel: string;
+  ctaSecondaryHref: string;
+  stats: Array<{ value: string; label: string }>;
+  closingHeadline: string;
+  closingSubcopy: string;
+  closingCtaLabel: string;
+  closingCtaHref: string;
+  updatedAt: string;
+}
+
 /** Landing-page Forex course pricing tier (admin-managed). */
 export interface CoursePlanView {
   id: string;

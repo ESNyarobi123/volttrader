@@ -773,6 +773,32 @@ model PlatformSettings {
   @@map("platform_settings")
 }
 
+/// Singleton marketing copy for the public landing page (admin-editable).
+model LandingPageContent {
+  id                 String   @id @default("default")
+  /// YouTube video id (11 chars) — not a full URL.
+  heroYoutubeId      String   @default("nMzMlm-F_yA") @map("hero_youtube_id")
+  heroEyebrow        String   @default("LEARN · INVEST · BUILD") @map("hero_eyebrow")
+  heroHeadline       String   @map("hero_headline")
+  /// Optional accent span rendered after the main headline (e.g. "Explore opportunities.").
+  heroHeadlineAccent String?  @map("hero_headline_accent")
+  heroSubcopy        String   @map("hero_subcopy")
+  ctaPrimaryLabel    String   @default("Sign up free") @map("cta_primary_label")
+  ctaPrimaryHref     String   @default("/register") @map("cta_primary_href")
+  ctaSecondaryLabel  String   @default("Sign in") @map("cta_secondary_label")
+  ctaSecondaryHref   String   @default("/login") @map("cta_secondary_href")
+  /// Marquee chips: [{ "value": "Learn", "label": "Forex Academy" }, ...]
+  statsJson          Json     @map("stats_json")
+  closingHeadline    String   @map("closing_headline")
+  closingSubcopy     String   @map("closing_subcopy")
+  closingCtaLabel    String   @default("Create your account") @map("closing_cta_label")
+  closingCtaHref     String   @default("/register") @map("closing_cta_href")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  updatedById        String?  @map("updated_by_id")
+
+  @@map("landing_page_content")
+}
+
 /// APPEND-ONLY audit trail for admin + financial + sensitive actions.
 model AuditLog {
   id         String   @id @default(cuid())
