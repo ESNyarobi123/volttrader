@@ -15,7 +15,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { RiskCategory, SUPPORTED_CURRENCIES, type Currency } from "@volt/config";
+import { RiskCategory, SUPPORTED_CURRENCIES, type Currency, DEFAULT_CURRENCY} from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { InvestmentPlanView } from "@volt/types";
 import { api, apiErrorMessage } from "@/lib/api";
@@ -67,7 +67,7 @@ const emptyDefaults: FormInput = {
   name: "",
   subtitle: "",
   amountMajor: 100000,
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   durationDays: 60,
   projectionLabel: "TARGET_PERFORMANCE",
   projectionHighlight: "2.0× target",

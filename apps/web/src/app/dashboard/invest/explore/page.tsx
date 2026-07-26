@@ -41,11 +41,11 @@ export default function DashboardExploreFloorPage() {
         <div>
           <p className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-volt-dim">
             <Sparkles className="h-3.5 w-3.5" />
-            Trading Floor
+            Account Management
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight">Explore opportunities</h1>
           <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-            Open packages from admin — review risk, terms and projected targets before you invest.
+            Review risk, terms and projected targets before you invest.
           </p>
         </div>
         <Link
@@ -109,7 +109,7 @@ export default function DashboardExploreFloorPage() {
         <EmptyState
           icon={LineChart}
           title="No opportunities open right now"
-          description="Check back soon — new opportunities are published by admin."
+          description="Check back soon — new opportunities will appear here when available."
         />
       )}
     </div>

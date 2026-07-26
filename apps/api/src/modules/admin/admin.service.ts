@@ -148,7 +148,7 @@ export class AdminService {
     updatedAt: Date;
     updatedById: string | null;
   }) {
-    const currency = (this.config.get<string>("DEFAULT_CURRENCY") ?? "TZS") as Currency;
+    const currency = (this.config.get<string>("DEFAULT_CURRENCY") ?? "USD") as Currency;
     const flutterwaveConfigured = Boolean(
       this.config.get<string>("FLUTTERWAVE_SECRET_KEY")?.trim(),
     );
@@ -326,7 +326,7 @@ export class AdminService {
     for (const row of usersByKycRaw) usersByKyc[row.kycStatus] = row._count;
 
     return {
-      currency: this.config.get<string>("DEFAULT_CURRENCY") ?? "TZS",
+      currency: this.config.get<string>("DEFAULT_CURRENCY") ?? "USD",
       totals: {
         users,
         courses,

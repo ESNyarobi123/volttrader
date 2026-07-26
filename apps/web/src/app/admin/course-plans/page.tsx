@@ -15,7 +15,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { SUPPORTED_CURRENCIES, type Currency } from "@volt/config";
+import { SUPPORTED_CURRENCIES, type Currency, DEFAULT_CURRENCY} from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { CoursePlanView } from "@volt/types";
 import { api, apiErrorMessage } from "@/lib/api";
@@ -58,7 +58,7 @@ const emptyDefaults: FormInput = {
   name: "",
   subtitle: "",
   amountMajor: 0,
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   billingPeriod: "month",
   featuresText: "",
   ctaLabel: "Get Started",

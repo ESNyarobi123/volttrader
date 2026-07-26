@@ -34,6 +34,7 @@ import {
   SUPPORTED_CURRENCIES,
   type Currency,
   type CourseStatus as CourseStatusType,
+  DEFAULT_CURRENCY,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { CourseSummary } from "@volt/types";
@@ -105,7 +106,7 @@ const emptyDefaults: CourseFormInput = {
   description: "",
   learningOutcomesText: "",
   priceMajor: 0,
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   accessType: "PAID",
   durationMinutes: 60,
   status: CourseStatus.DRAFT,
@@ -148,8 +149,8 @@ export default function AdminCoursesPage() {
   const shortDescriptionValue = watch("shortDescription");
 
   const previewPrice = formatMoney({
-    amount: toMinorUnits(Number(priceMajor) || 0, (currencyValue as Currency) || "TZS"),
-    currency: (currencyValue as Currency) || "TZS",
+    amount: toMinorUnits(Number(priceMajor) || 0, (currencyValue as Currency) || DEFAULT_CURRENCY),
+    currency: (currencyValue as Currency) || DEFAULT_CURRENCY,
   });
 
   useEffect(() => {

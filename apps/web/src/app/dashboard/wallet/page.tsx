@@ -23,7 +23,7 @@ import {
   TrendingUp,
   Wallet as WalletIcon,
 } from "lucide-react";
-import { type Currency } from "@volt/config";
+import { type Currency, DEFAULT_CURRENCY} from "@volt/config";
 import type {
   DepositMethodsView,
   LedgerEntryView,
@@ -111,7 +111,7 @@ export default function DashboardWalletPage() {
     (w) => !["COMPLETED", "REJECTED", "CANCELLED"].includes(w.status),
   );
   const methods = depositMethodsQuery.data;
-  const currency = (walletQuery.data?.currency ?? methods?.currency ?? "TZS") as Currency;
+  const currency = (walletQuery.data?.currency ?? methods?.currency ?? DEFAULT_CURRENCY) as Currency;
 
   const depositForm = useForm<DepositFormValues>({
     resolver: zodResolver(depositFormSchema),
@@ -534,7 +534,7 @@ export default function DashboardWalletPage() {
                     <div>
                       <p className="font-semibold">Submitted</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Credits after finance confirms.
+                        Your wallet updates after our team confirms the transfer.
                       </p>
                     </div>
                   </div>

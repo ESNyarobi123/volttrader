@@ -18,6 +18,7 @@ import type {
   TwoFactorCodeInput,
   TwoFactorDisableInput,
 } from "@volt/validation";
+import { DEFAULT_CURRENCY } from "@volt/config";
 import type { AuthResponse, SessionUser, TwoFactorSetupView } from "@volt/types";
 import { hashPassword } from "../../common/password";
 import { toSessionUser } from "../../common/session-user";
@@ -172,7 +173,7 @@ export class AuthService {
         },
       });
       // Every user gets a wallet at signup (default currency); balance stays 0 via ledger.
-      await this.ledger.ensureWallet(created.id, "TZS", tx);
+      await this.ledger.ensureWallet(created.id, DEFAULT_CURRENCY, tx);
       return created;
     });
 

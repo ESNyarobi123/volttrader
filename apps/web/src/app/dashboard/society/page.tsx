@@ -184,7 +184,7 @@ export default function DashboardSocietyPage() {
               Volt Society waitlist
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Request a seat. Admin activates members.
+              Request a seat. We activate members when ready.
             </p>
           </div>
           <Button
@@ -213,8 +213,8 @@ export default function DashboardSocietyPage() {
           />
           <StepRow
             step="2"
-            title="Admin review"
-            detail="Status moves to Active when ready."
+            title="Team review"
+            detail="Your status moves to Active when approved."
             done={membership?.status === "ACTIVE"}
           />
           <StepRow

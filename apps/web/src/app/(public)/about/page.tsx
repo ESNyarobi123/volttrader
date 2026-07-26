@@ -40,14 +40,14 @@ const PILLARS: {
   {
     icon: Wallet,
     title: "Wallet",
-    description: "One balance, one immutable ledger — every move visible.",
+    description: "One balance, every move tracked — full visibility on your funds.",
     href: "/dashboard/wallet",
     tone: "from-[hsl(142_65%_29%)] to-[hsl(142_62%_38%)] text-white",
   },
   {
     icon: TrendingUp,
-    title: "Trading Floor",
-    description: "Curated opportunities with clear risk and target performance.",
+    title: "Account Management",
+    description: "Curated investment packages with clear risk and projected profit targets.",
     href: "/trading-floor",
     tone: "from-[hsl(351_77%_61%)] to-[hsl(349_74%_36%)] text-white",
   },
@@ -67,7 +67,7 @@ const STORY_BEATS: { step: string; title: string; body: string }[] = [
   {
     step: "03",
     title: "Where we are today",
-    body: "A scalable ecosystem — Academy, Trading Floor, Wallet, Projects, and Community — not a single-page investment site. Clarity outside. Power inside.",
+    body: "A scalable ecosystem — Academy, Account Management, Wallet, Projects, and Community — not a single-page investment site. Clarity outside. Power inside.",
   },
 ];
 
@@ -203,7 +203,7 @@ export default function AboutPage() {
               One connected ecosystem
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-              A connected ecosystem — Academy, Trading Floor, Wallet, Projects, and Community —
+              A connected ecosystem — Academy, Account Management, Wallet, Projects, and Community —
               where members grow their knowledge and their capital side by side, and where the
               underlying platform scales without ever compromising trust.
             </p>

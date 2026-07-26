@@ -25,7 +25,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "3. Wallet deposits",
     body: [
-      "Deposits are credited only after a verified provider webhook. A deposit that never reaches PAID status does not create a wallet credit.",
+      "Deposits are credited only after your payment provider confirms the transfer. A deposit that is never confirmed does not create a wallet credit.",
       "Once a deposit is confirmed and credited, it becomes wallet balance. You may withdraw subject to KYC, review, and platform limits — that is not the same as a purchase refund.",
     ],
   },

@@ -12,6 +12,7 @@ import type {
   AdminUpdateUserInput,
   UpdateProfileInput,
 } from "@volt/validation";
+import { DEFAULT_CURRENCY } from "@volt/config";
 import type { SessionUser } from "@volt/types";
 import { hashPassword } from "../../common/password";
 import { pickDefined } from "../../common/pick-defined";
@@ -158,7 +159,7 @@ export class UsersService {
         },
         select: ADMIN_USER_SELECT,
       });
-      await this.ledger.ensureWallet(created.id, "TZS", tx);
+      await this.ledger.ensureWallet(created.id, DEFAULT_CURRENCY, tx);
       return created;
     });
 

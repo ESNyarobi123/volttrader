@@ -25,6 +25,7 @@ import {
 import {
   SUPPORTED_CURRENCIES,
   type Currency,
+  DEFAULT_CURRENCY,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import { ApiRequestError, api, apiErrorMessage } from "@/lib/api";
@@ -126,7 +127,7 @@ const emptyDefaults: CouponFormInput = {
   discountType: "PERCENT",
   percentOff: 10,
   amountMajor: undefined,
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   maxRedemptions: "",
   expiresAt: "",
   active: true,
@@ -172,8 +173,8 @@ export default function AdminCouponsPage() {
     discountType === "PERCENT"
       ? `${percentOff || "—"}% off`
       : formatMoney({
-          amount: toMinorUnits(Number(amountMajor) || 0, (currencyValue as Currency) || "TZS"),
-          currency: (currencyValue as Currency) || "TZS",
+          amount: toMinorUnits(Number(amountMajor) || 0, (currencyValue as Currency) || DEFAULT_CURRENCY),
+          currency: (currencyValue as Currency) || DEFAULT_CURRENCY,
         });
 
   const openCreate = () => {
@@ -193,7 +194,7 @@ export default function AdminCouponsPage() {
         coupon.amountOff != null && coupon.currency
           ? fromMinorUnits(coupon.amountOff, coupon.currency)
           : undefined,
-      currency: coupon.currency ?? "TZS",
+      currency: coupon.currency ?? DEFAULT_CURRENCY,
       maxRedemptions: coupon.maxRedemptions ?? "",
       expiresAt: toDatetimeLocal(coupon.expiresAt),
       active: coupon.active,

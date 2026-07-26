@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Clock, Lock, PlayCircle } from "lucide-react";
-import type { CourseDetail, PaymentView } from "@volt/types";
+import { CheckCircle2, Clock, Lock, PlayCircle, Wallet } from "lucide-react";
+import type { CourseDetail, PaymentView, WalletView } from "@volt/types";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,12 @@ export default function CourseDetailPage() {
     queryKey: ["course", slug],
     queryFn: () => api.get<CourseDetail>(`/courses/${slug}`),
     enabled: !!slug,
+  });
+
+  const walletQuery = useQuery({
+    queryKey: ["wallet"],
+    queryFn: () => api.get<WalletView>("/wallet"),
+    enabled: Boolean(user),
   });
 
   const checkoutMutation = useMutation({
@@ -75,6 +81,13 @@ export default function CourseDetailPage() {
   }
 
   const mutationError = checkoutMutation.error ?? enrollFreeMutation.error;
+  const wallet = walletQuery.data;
+  const paid = course.accessType === "PAID";
+  const canAffordWallet =
+    !paid || (wallet ? wallet.balance.amount >= course.price.amount : false);
+  const insufficient =
+    mutationError instanceof ApiRequestError &&
+    /insufficient wallet balance/i.test(mutationError.message);
 
   return (
     <div className="container-page py-10">
@@ -147,21 +160,38 @@ export default function CourseDetailPage() {
         <div className="lg:col-span-1">
           <Card className="sticky top-6">
             <CardHeader>
-              <CardTitle>{course.accessType === "FREE" ? "Free" : formatMoney(course.price)}</CardTitle>
+              <CardTitle>
+                {course.accessType === "FREE" ? "Free" : formatMoney(course.price)}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mutationError && (
+              {user && paid ? (
+                <div className="rounded-xl border border-border bg-surface-2/50 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Wallet </span>
+                  <span className="font-semibold">
+                    {wallet ? formatMoney(wallet.balance) : "…"}
+                  </span>
+                </div>
+              ) : null}
+
+              {mutationError ? (
                 <Alert variant="danger">
                   {apiErrorMessage(mutationError, "Something went wrong.")}
                 </Alert>
-              )}
+              ) : null}
 
               {!user ? (
-                <Link href={`/login?redirect=/courses/${slug}`} className={cn(buttonVariants({ variant: "primary" }), "w-full")}>
+                <Link
+                  href={`/login?redirect=/courses/${slug}`}
+                  className={cn(buttonVariants({ variant: "primary" }), "w-full")}
+                >
                   Log in to continue
                 </Link>
               ) : course.enrolled ? (
-                <Link href="/dashboard/learn" className={cn(buttonVariants({ variant: "primary" }), "w-full")}>
+                <Link
+                  href={`/dashboard/learn/${course.slug}`}
+                  className={cn(buttonVariants({ variant: "primary" }), "w-full")}
+                >
                   Go to course
                 </Link>
               ) : course.accessType === "FREE" ? (
@@ -172,29 +202,54 @@ export default function CourseDetailPage() {
                 >
                   {enrollFreeMutation.isPending ? "Enrolling…" : "Enroll free"}
                 </Button>
-              ) : (
+              ) : !canAffordWallet || insufficient ? (
                 <div className="space-y-2">
+                  <Alert variant="warning">
+                    Deposit to your wallet to buy this course with balance.
+                  </Alert>
+                  <Link
+                    href="/dashboard/wallet"
+                    className={cn(
+                      buttonVariants({ variant: "primary" }),
+                      "inline-flex w-full justify-center rounded-full shadow-volt",
+                    )}
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Deposit to buy
+                  </Link>
                   <Button
-                    className="w-full"
+                    variant="outline"
+                    className="w-full rounded-full"
                     onClick={() => checkoutMutation.mutate("PAYMENT")}
                     disabled={checkoutMutation.isPending}
                   >
-                    {checkoutMutation.isPending ? "Processing…" : "Buy course"}
+                    {checkoutMutation.isPending ? "Processing…" : "Pay online instead"}
                   </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
                   <Button
-                    variant="outline"
-                    className="w-full"
+                    className="w-full rounded-full shadow-volt"
                     onClick={() => checkoutMutation.mutate("WALLET")}
                     disabled={checkoutMutation.isPending}
                   >
-                    Pay from wallet
+                    <Wallet className="h-4 w-4" />
+                    {checkoutMutation.isPending ? "Processing…" : "Pay from wallet"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-full"
+                    onClick={() => checkoutMutation.mutate("PAYMENT")}
+                    disabled={checkoutMutation.isPending}
+                  >
+                    Pay online
                   </Button>
                 </div>
               )}
             </CardContent>
             <CardFooter>
               <p className="text-xs text-muted-foreground">
-                Lifetime access to lessons, progress tracking, and a certificate on completion.
+                Paid courses debit your wallet first. Deposit if balance is low.
               </p>
             </CardFooter>
           </Card>

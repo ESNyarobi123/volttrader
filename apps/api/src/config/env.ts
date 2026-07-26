@@ -26,7 +26,7 @@ const envSchema = z.object({
 
   PAYMENT_DEFAULT_GATEWAY: z.string().default("mock"),
   PAYMENT_WEBHOOK_SECRET: z.string().min(16).default("dev_webhook_secret"),
-  DEFAULT_CURRENCY: z.string().default("TZS"),
+  DEFAULT_CURRENCY: z.string().default("USD"),
   /** Optional Flutterwave keys — when set, gateway id `flutterwave` is available. */
   FLUTTERWAVE_SECRET_KEY: z.string().optional(),
   FLUTTERWAVE_PUBLIC_KEY: z.string().optional(),

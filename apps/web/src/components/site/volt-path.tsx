@@ -31,10 +31,10 @@ const STEPS = [
   },
   {
     n: "03",
-    title: "Invest on the floor",
-    body: "Pick a curated opportunity, accept Terms & Risk, then fund. Targets are projections — never guarantees.",
+    title: "Invest with management",
+    body: "Pick a curated opportunity, accept Terms & Risk, then fund. Projected profits are targets — never guarantees.",
     href: "/trading-floor",
-    cta: "Open Trading Floor",
+    cta: "Open Account Management",
     icon: LineChart,
     tone: "crimson" as const,
   },
@@ -180,7 +180,7 @@ export function VoltPath({ className }: { className?: string }) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Link href="/trading-floor">
               <Button className="h-11 w-full rounded-full px-6 shadow-volt sm:w-auto">
-                Open Trading Floor
+                Open Account Management
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Button>
             </Link>

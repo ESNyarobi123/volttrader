@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardNotifications } from "@/components/dashboard/dashboard-notifications";
+import { KycWelcomeDialog } from "@/components/dashboard/kyc-welcome-dialog";
 import { DropdownPortal } from "@/components/shared/dropdown-portal";
 import { LordIconScript } from "@/components/shared/lord-icon";
 import { useAuth } from "@/lib/auth";
@@ -348,6 +349,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       >
         {children}
       </main>
+
+      <KycWelcomeDialog />
 
       <nav
         className={cn(

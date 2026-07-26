@@ -212,13 +212,16 @@ export type NotificationType = (typeof NotificationType)[keyof typeof Notificati
 // ---------------------------------------------------------------------------
 // Money
 // ---------------------------------------------------------------------------
-export const SUPPORTED_CURRENCIES = ["TZS", "USD", "KES", "UGX"] as const;
+/** Platform default — Volt Trades displays and settles in USD. */
+export const DEFAULT_CURRENCY = "USD" as const;
+
+export const SUPPORTED_CURRENCIES = ["USD", "TZS", "KES", "UGX"] as const;
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];
 
-/** Minor units per major unit. TZS/UGX have no minor unit in practice; use 100 for consistency of storage. */
+/** Minor units per major unit (cents). Stored as integer BigInt — never floats. */
 export const CURRENCY_MINOR_UNITS: Record<Currency, number> = {
-  TZS: 100,
   USD: 100,
+  TZS: 100,
   KES: 100,
   UGX: 100,
 };

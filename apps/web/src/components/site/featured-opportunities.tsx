@@ -270,13 +270,14 @@ export function FeaturedOpportunities({
         <header className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div className="max-w-xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(213_70%_40%)]">
-              Trading Floor
+              Account Management
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold tracking-tight md:text-4xl lg:text-[2.75rem]">
-              Trading floor opportunities
+              Investment opportunities
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-              Curated opportunities with transparent risk categories and target performance.
+              Curated packages with clear risk categories and projected profit targets — never
+              guarantees.
             </p>
           </div>
           <Link href="/trading-floor" className="shrink-0">

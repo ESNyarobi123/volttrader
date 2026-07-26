@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -18,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Money } from "@volt/types";
-import type { Currency } from "@volt/config";
+import { DEFAULT_CURRENCY, type Currency } from "@volt/config";
 import { api, apiErrorMessage } from "@/lib/api";
 import { StatTile, type StatTone } from "@/components/ui/stat-tile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,7 +178,7 @@ export default function AdminOverviewPage() {
   });
 
   const stats = statsQuery.data;
-  const currency = stats?.currency ?? "TZS";
+  const currency = stats?.currency ?? DEFAULT_CURRENCY;
 
   const flowSeries = useMemo(
     () => [

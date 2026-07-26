@@ -61,7 +61,7 @@ export default function DashboardLearnPage() {
           <p className="mt-1 text-sm text-muted-foreground">Your Forex courses.</p>
         </div>
         <Link
-          href="/learn"
+          href="/dashboard/learn/explore"
           className={cn(
             buttonVariants({ size: "sm" }),
             "justify-center rounded-full shadow-volt sm:shrink-0",
@@ -169,7 +169,7 @@ export default function DashboardLearnPage() {
             <p className="mt-3 font-semibold">No courses yet</p>
             <p className="mt-1 text-sm text-muted-foreground">Start with a Forex plan.</p>
             <Link
-              href="/learn"
+              href="/dashboard/learn/explore"
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
                 "mt-4 rounded-full",

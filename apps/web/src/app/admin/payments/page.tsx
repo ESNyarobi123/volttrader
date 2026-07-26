@@ -38,6 +38,7 @@ import {
   type Currency,
   type PaymentStatus as PaymentStatusType,
   type PaymentType as PaymentTypeType,
+  DEFAULT_CURRENCY,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { Money } from "@volt/types";
@@ -153,7 +154,7 @@ const createDefaults: CreateFormInput = {
   userId: "",
   type: "WALLET_DEPOSIT",
   amountMajor: 0,
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   gateway: "mock",
   courseId: "",
   opportunityId: "",
@@ -325,9 +326,9 @@ export default function AdminPaymentsPage() {
   const previewAmount = formatMoney({
     amount: toMinorUnits(
       Number(createWatch.amountMajor) || 0,
-      (createWatch.currency as Currency) || "TZS",
+      (createWatch.currency as Currency) || DEFAULT_CURRENCY,
     ),
-    currency: (createWatch.currency as Currency) || "TZS",
+    currency: (createWatch.currency as Currency) || DEFAULT_CURRENCY,
   });
   const selectedUser = users.find((u) => u.id === createWatch.userId);
 

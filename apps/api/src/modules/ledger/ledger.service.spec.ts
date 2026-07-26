@@ -4,7 +4,7 @@ import { LedgerService } from "./ledger.service";
 describe("LedgerService.post", () => {
   it("locks wallet row before reading balance and rejects overdraft", async () => {
     const queryRaw = jest.fn().mockResolvedValue([{ id: "w1" }]);
-    const findUnique = jest.fn().mockResolvedValue({ id: "w1", userId: "u1", currency: "TZS" });
+    const findUnique = jest.fn().mockResolvedValue({ id: "w1", userId: "u1", currency: "USD" });
     const groupBy = jest.fn().mockResolvedValue([
       { direction: "CREDIT", _sum: { amount: 1000n } },
       { direction: "DEBIT", _sum: { amount: 0n } },
@@ -25,7 +25,7 @@ describe("LedgerService.post", () => {
         direction: "DEBIT",
         type: "WITHDRAWAL",
         amount: 5000n,
-        currency: "TZS",
+        currency: "USD",
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -35,7 +35,7 @@ describe("LedgerService.post", () => {
 
   it("posts credit after lock when funds are sufficient", async () => {
     const queryRaw = jest.fn().mockResolvedValue([{ id: "w1" }]);
-    const findUnique = jest.fn().mockResolvedValue({ id: "w1", userId: "u1", currency: "TZS" });
+    const findUnique = jest.fn().mockResolvedValue({ id: "w1", userId: "u1", currency: "USD" });
     const groupBy = jest.fn().mockResolvedValue([
       { direction: "CREDIT", _sum: { amount: 10_000n } },
       { direction: "DEBIT", _sum: { amount: 0n } },
@@ -54,7 +54,7 @@ describe("LedgerService.post", () => {
       direction: "DEBIT",
       type: "INVESTMENT_FUNDING",
       amount: 2500n,
-      currency: "TZS",
+      currency: "USD",
     });
 
     expect(entry).toEqual({ id: "le1" });

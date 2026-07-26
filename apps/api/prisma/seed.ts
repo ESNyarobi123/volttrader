@@ -179,7 +179,7 @@ async function postLedger(params: {
       direction: params.direction,
       type: params.type,
       amount: params.amount,
-      currency: "TZS",
+      currency: "USD",
       balanceAfter,
       reference: params.reference,
       paymentId: params.paymentId,
@@ -212,7 +212,7 @@ async function upsertPayment(data: {
       type: data.type,
       status: data.status,
       amount: data.amount,
-      currency: "TZS",
+      currency: "USD",
       gateway: "mock",
       reference: data.reference,
       idempotencyKey: `idem-${data.reference}`,
@@ -251,6 +251,8 @@ async function main() {
   await prisma.platformSettings.upsert({
     where: { id: "default" },
     update: {
+      minDepositMinor: 1000n,
+      minWithdrawalMinor: 2500n,
       depositMobileProvider: "M-Pesa",
       depositMobileNumber: "255700000001",
       depositMobileName: "Volt Trades Ltd",
@@ -258,7 +260,7 @@ async function main() {
       depositBankAccount: "0150123456789",
       depositBankAccountName: "Volt Trades Ltd",
       depositInstructions:
-        "Send the exact amount, then submit your deposit with the transaction ID. Finance confirms before wallet credit.",
+        "Send the exact USD amount, then submit your deposit with the transaction ID. Finance confirms before wallet credit.",
     },
     create: {
       id: "default",
@@ -268,8 +270,8 @@ async function main() {
       maintenanceMode: false,
       registrationOpen: true,
       communityOpen: true,
-      minDepositMinor: 100000n,
-      minWithdrawalMinor: 500000n,
+      minDepositMinor: 1000n, // $10.00
+      minWithdrawalMinor: 2500n, // $25.00
       depositMobileProvider: "M-Pesa",
       depositMobileNumber: "255700000001",
       depositMobileName: "Volt Trades Ltd",
@@ -301,7 +303,7 @@ async function main() {
   await prisma.wallet.upsert({
     where: { userId: admin.id },
     update: {},
-    create: { userId: admin.id, currency: "TZS" },
+    create: { userId: admin.id, currency: "USD" },
   });
 
   // Light staff accounts for admin RBAC demos
@@ -322,7 +324,7 @@ async function main() {
   await prisma.wallet.upsert({
     where: { userId: finance.id },
     update: {},
-    create: { userId: finance.id, currency: "TZS" },
+    create: { userId: finance.id, currency: "USD" },
   });
 
   const supportAgent = await prisma.user.upsert({
@@ -341,7 +343,7 @@ async function main() {
   await prisma.wallet.upsert({
     where: { userId: supportAgent.id },
     update: {},
-    create: { userId: supportAgent.id, currency: "TZS" },
+    create: { userId: supportAgent.id, currency: "USD" },
   });
 
   // --- Categories + courses ---
@@ -371,7 +373,7 @@ async function main() {
       title: "Technical Analysis",
       level: "INTERMEDIATE" as const,
       shortDescription: "Read charts, structure and indicators to time the market.",
-      price: 4900000n,
+      price: 4900n, // $49.00
       accessType: "PAID" as const,
       categoryId: forex.id,
     },
@@ -380,7 +382,7 @@ async function main() {
       title: "Professional Trading & Strategy",
       level: "ADVANCED" as const,
       shortDescription: "Build, backtest and manage a professional trading strategy.",
-      price: 9900000n,
+      price: 9900n, // $99.00
       accessType: "PAID" as const,
       categoryId: forex.id,
     },
@@ -389,7 +391,7 @@ async function main() {
       title: "Complete Forex Mastery",
       level: "PREMIUM" as const,
       shortDescription: "The full path from beginner to consistently disciplined trader.",
-      price: 19900000n,
+      price: 19900n, // $199.00
       accessType: "PAID" as const,
       categoryId: forex.id,
     },
@@ -398,7 +400,7 @@ async function main() {
       title: "Risk & Trading Psychology",
       level: "INTERMEDIATE" as const,
       shortDescription: "Protect capital and stay disciplined under pressure.",
-      price: 3900000n,
+      price: 3900n, // $39.00
       accessType: "PAID" as const,
       categoryId: riskCat.id,
     },
@@ -407,9 +409,45 @@ async function main() {
       title: "Price Action Essentials",
       level: "BEGINNER" as const,
       shortDescription: "Trade structure, candles and levels without indicator clutter.",
-      price: 2900000n,
+      price: 2900n, // $29.00
       accessType: "PAID" as const,
       categoryId: forex.id,
+    },
+    {
+      slug: "market-sessions-liquidity",
+      title: "Market Sessions & Liquidity",
+      level: "BEGINNER" as const,
+      shortDescription: "Know when the market moves — London, New York, and quiet hours.",
+      price: 2500n,
+      accessType: "PAID" as const,
+      categoryId: forex.id,
+    },
+    {
+      slug: "trade-journal-discipline",
+      title: "Trade Journal & Discipline",
+      level: "INTERMEDIATE" as const,
+      shortDescription: "Build a review habit that improves decisions over time.",
+      price: 3500n,
+      accessType: "PAID" as const,
+      categoryId: riskCat.id,
+    },
+    {
+      slug: "multi-timeframe-analysis",
+      title: "Multi-Timeframe Analysis",
+      level: "ADVANCED" as const,
+      shortDescription: "Align higher-timeframe bias with precise lower-timeframe entries.",
+      price: 7900n,
+      accessType: "PAID" as const,
+      categoryId: forex.id,
+    },
+    {
+      slug: "capital-allocation-basics",
+      title: "Capital Allocation Basics",
+      level: "INTERMEDIATE" as const,
+      shortDescription: "Size positions and plan capital across learning and investing.",
+      price: 4500n,
+      accessType: "PAID" as const,
+      categoryId: riskCat.id,
     },
   ];
 
@@ -421,6 +459,7 @@ async function main() {
         title: c.title,
         shortDescription: c.shortDescription,
         priceAmount: c.price,
+        priceCurrency: "USD",
         status: "PUBLISHED",
       },
       create: {
@@ -431,7 +470,7 @@ async function main() {
         description: `${c.title}. Delivered by the Volt Trades Forex Academy.`,
         learningOutcomes: ["Understand the market", "Manage risk", "Practice with discipline"],
         priceAmount: c.price,
-        priceCurrency: "TZS",
+        priceCurrency: "USD",
         accessType: c.accessType,
         durationMinutes: 240,
         status: "PUBLISHED",
@@ -511,7 +550,7 @@ async function main() {
       slug: "growth-managed-account",
       name: "Growth Managed Account",
       summary: "A managed Forex allocation with a projected growth target.",
-      minAmount: 10000000n,
+      minAmount: 10000n, // $100.00
       multiplier: "5",
       risk: "HIGH" as const,
       durationDays: 90,
@@ -520,7 +559,7 @@ async function main() {
       slug: "starter-allocation",
       name: "Starter Allocation",
       summary: "A lower-entry allocation for first-time participants.",
-      minAmount: 2000000n,
+      minAmount: 5000n, // $50.00
       multiplier: "2",
       risk: "MEDIUM" as const,
       durationDays: 60,
@@ -529,7 +568,7 @@ async function main() {
       slug: "balanced-floor",
       name: "Balanced Floor",
       summary: "A mid-risk managed allocation with a moderate projected outcome.",
-      minAmount: 5000000n,
+      minAmount: 7500n, // $75.00
       multiplier: "3",
       risk: "MEDIUM" as const,
       durationDays: 75,
@@ -538,7 +577,7 @@ async function main() {
       slug: "conservative-preserve",
       name: "Conservative Preserve",
       summary: "Lower-risk allocation focused on capital discipline.",
-      minAmount: 3000000n,
+      minAmount: 4000n, // $40.00
       multiplier: "1.5",
       risk: "LOW" as const,
       durationDays: 45,
@@ -547,10 +586,55 @@ async function main() {
       slug: "momentum-sprint",
       name: "Momentum Sprint",
       summary: "Shorter-duration allocation with a higher projected target.",
-      minAmount: 7500000n,
+      minAmount: 8000n, // $80.00
       multiplier: "4",
       risk: "VERY_HIGH" as const,
       durationDays: 30,
+    },
+    {
+      slug: "steady-core",
+      name: "Steady Core",
+      summary: "Core managed allocation with a measured projected outcome.",
+      minAmount: 6000n,
+      multiplier: "2.2",
+      risk: "LOW" as const,
+      durationDays: 60,
+    },
+    {
+      slug: "growth-plus",
+      name: "Growth Plus",
+      summary: "Balanced growth allocation for members building experience.",
+      minAmount: 9000n,
+      multiplier: "3.5",
+      risk: "MEDIUM" as const,
+      durationDays: 80,
+    },
+    {
+      slug: "focus-allocation",
+      name: "Focus Allocation",
+      summary: "Focused desk allocation with a clear target performance band.",
+      minAmount: 12000n,
+      multiplier: "4.2",
+      risk: "HIGH" as const,
+      durationDays: 70,
+    },
+    {
+      slug: "pulse-rotation",
+      name: "Pulse Rotation",
+      summary: "Shorter rotation-style allocation with an active projected target.",
+      minAmount: 7000n,
+      multiplier: "2.8",
+      risk: "MEDIUM" as const,
+      durationDays: 40,
+    },
+    {
+      slug: "summit-path",
+      name: "Summit Path",
+      summary: "Longer-horizon allocation with a higher projected outcome band.",
+      minAmount: 15000n,
+      multiplier: "4.8",
+      risk: "HIGH" as const,
+      durationDays: 120,
     },
   ];
 
@@ -558,13 +642,18 @@ async function main() {
   for (const o of opportunitiesSeed) {
     const row = await prisma.opportunity.upsert({
       where: { slug: o.slug },
-      update: { status: "OPEN", summary: o.summary },
+      update: {
+        status: "OPEN",
+        summary: o.summary,
+        currency: "USD",
+        minAmount: o.minAmount,
+      },
       create: {
         slug: o.slug,
         name: o.name,
         summary: o.summary,
         description: `${o.name}. Managed by Volt Trades Trading Floor.`,
-        currency: "TZS",
+        currency: "USD",
         minAmount: o.minAmount,
         durationDays: o.durationDays,
         projectionMultiplier: o.multiplier,
@@ -670,7 +759,7 @@ async function main() {
     {
       name: "Essential",
       subtitle: "Best for personal skill building",
-      priceAmount: 80_000_00n, // 80,000 TZS
+      priceAmount: 2900n, // $29.00 / month
       billingPeriod: "month",
       featured: false,
       sortOrder: 1,
@@ -686,7 +775,7 @@ async function main() {
     {
       name: "Pro",
       subtitle: "Best for serious traders",
-      priceAmount: 150_000_00n, // 150,000 TZS
+      priceAmount: 4900n, // $49.00 / month
       billingPeriod: "month",
       featured: true,
       sortOrder: 2,
@@ -703,7 +792,7 @@ async function main() {
     {
       name: "Mastery",
       subtitle: "Best for teams & power users",
-      priceAmount: 250_000_00n, // 250,000 TZS
+      priceAmount: 9900n, // $99.00 / month
       billingPeriod: "month",
       featured: false,
       sortOrder: 3,
@@ -723,7 +812,7 @@ async function main() {
     const data = {
       subtitle: plan.subtitle,
       priceAmount: plan.priceAmount,
-      priceCurrency: "TZS" as const,
+      priceCurrency: "USD" as const,
       billingPeriod: plan.billingPeriod,
       features: plan.features,
       ctaLabel: plan.ctaLabel,
@@ -744,80 +833,78 @@ async function main() {
     {
       name: "Spark",
       subtitle: "Best for first-time capital allocation",
-      minAmount: 50_000_00n,
-      durationDays: 30,
+      minAmount: 50000n, // $500.00
+      durationDays: 7,
       projectionLabel: "TARGET_PERFORMANCE" as const,
-      projectionHighlight: "1.3× target",
+      projectionHighlight: "2×",
       riskCategory: "LOW" as const,
       featured: false,
       sortOrder: 0,
       features: [
-        "Lower entry amount",
-        "Short 30-day cycle",
-        "Ledger-tracked funding",
-        "Risk disclosure before invest",
+        "Projected profit up to 2×",
+        "1-week management cycle",
+        "Entry from $500",
+        "Risk disclosure before you invest",
         "Portfolio status tracking",
       ],
-      ctaLabel: "Start on floor",
+      ctaLabel: "Invest Now",
     },
     {
       name: "Momentum",
       subtitle: "Best for balanced growth seekers",
-      minAmount: 150_000_00n,
-      durationDays: 60,
+      minAmount: 100000n, // $1,000.00
+      durationDays: 14,
       projectionLabel: "PROJECTED_OUTCOME" as const,
-      projectionHighlight: "1.8× projected",
+      projectionHighlight: "3×",
       riskCategory: "MEDIUM" as const,
       featured: false,
       sortOrder: 1,
       features: [
-        "All Spark benefits",
-        "60-day structured window",
+        "Projected profit up to 3×",
+        "2-week management cycle",
+        "Entry from $1,000",
         "Curated opportunity access",
         "Dashboard performance view",
-        "Priority floor alerts",
       ],
-      ctaLabel: "View Momentum",
+      ctaLabel: "Invest Now",
     },
     {
       name: "Velocity",
       subtitle: "Best for active capital managers",
-      minAmount: 500_000_00n,
-      durationDays: 90,
+      minAmount: 250000n, // $2,500.00
+      durationDays: 30,
       projectionLabel: "TARGET_PERFORMANCE" as const,
-      projectionHighlight: "2.5× target",
+      projectionHighlight: "4×",
       riskCategory: "HIGH" as const,
       featured: true,
       sortOrder: 2,
       features: [
-        "All Momentum benefits",
+        "Projected profit up to 4×",
+        "30-day management cycle",
+        "Entry from $2,500",
         "Higher capacity slots",
-        "Extended 90-day horizon",
-        "Settlement via immutable ledger",
         "Terms & risk acceptance flow",
-        "Dedicated invest support path",
       ],
-      ctaLabel: "Choose Velocity",
+      ctaLabel: "Invest Now",
     },
     {
       name: "Summit",
       subtitle: "Best for experienced allocators",
-      minAmount: 1_000_000_00n,
-      durationDays: 120,
+      minAmount: 500000n, // $5,000.00
+      durationDays: 60,
       projectionLabel: "HISTORICAL_PERFORMANCE" as const,
-      projectionHighlight: "3.0× historical",
+      projectionHighlight: "5×",
       riskCategory: "VERY_HIGH" as const,
       featured: false,
       sortOrder: 3,
       features: [
-        "All Velocity benefits",
+        "Projected profit up to 5×",
+        "60-day management cycle",
+        "Entry from $5,000",
         "Premium opportunity tiers",
-        "Longer settlement window",
         "Full portfolio analytics",
-        "Early access to new packages",
-        "Compliance-first disclosures",
       ],
-      ctaLabel: "Go Summit",
+      ctaLabel: "Invest Now",
     },
   ];
   for (const plan of investmentPlansSeed) {
@@ -825,14 +912,14 @@ async function main() {
     const data = {
       subtitle: plan.subtitle,
       minAmount: plan.minAmount,
-      currency: "TZS" as const,
+      currency: "USD" as const,
       durationDays: plan.durationDays,
       projectionLabel: plan.projectionLabel,
       projectionHighlight: plan.projectionHighlight,
       riskCategory: plan.riskCategory,
       features: plan.features,
       ctaLabel: plan.ctaLabel,
-      ctaHref: "/trading-floor",
+      ctaHref: "/register",
       featured: plan.featured,
       sortOrder: plan.sortOrder,
       published: true,
@@ -865,7 +952,7 @@ async function main() {
         code: c.code,
         percentOff: c.percentOff ?? null,
         amountOff: c.amountOff ?? null,
-        currency: c.amountOff ? "TZS" : null,
+        currency: c.amountOff ? "USD" : null,
         maxRedemptions: c.maxRedemptions,
         expiresAt,
         active: true,
@@ -906,7 +993,7 @@ async function main() {
     const wallet = await prisma.wallet.upsert({
       where: { userId: user.id },
       update: {},
-      create: { userId: user.id, currency: "TZS" },
+      create: { userId: user.id, currency: "USD" },
     });
     createdUsers.push({
       id: user.id,
@@ -1100,7 +1187,7 @@ async function main() {
         userId: u.id,
         opportunityId: opp.id,
         principalAmount: principal,
-        currency: "TZS",
+        currency: "USD",
         multiplierSnapshot: opp.multiplier,
         projectedValue: projected,
         status: i === 0 ? "MATURED" : "ACTIVE",
@@ -1133,7 +1220,7 @@ async function main() {
           userId: u.id,
           opportunityId: starter.id,
           principalAmount: principal,
-          currency: "TZS",
+          currency: "USD",
           multiplierSnapshot: starter.multiplier,
           projectedValue: principal * 2n,
           status: "PENDING",
@@ -1177,7 +1264,7 @@ async function main() {
       data: {
         userId: u.id,
         amount,
-        currency: "TZS",
+        currency: "USD",
         method: i % 2 === 0 ? "MOBILE_MONEY" : "BANK_TRANSFER",
         destinationMasked: i % 2 === 0 ? "+255***001" : "****1234",
         status,
@@ -1336,8 +1423,32 @@ async function main() {
 
     const showcaseWallet = await prisma.wallet.upsert({
       where: { userId: showcase.id },
-      update: {},
-      create: { userId: showcase.id, currency: "TZS" },
+      update: { currency: "USD" },
+      create: { userId: showcase.id, currency: "USD" },
+    });
+
+    // Reset showcase money so reseed can apply USD-scale amounts.
+    // ledger_entries is append-only via trigger — disable briefly for seed reset only.
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE ledger_entries DISABLE TRIGGER ALL`,
+    );
+    try {
+      await prisma.ledgerEntry.deleteMany({
+        where: { userId: showcase.id, reference: { startsWith: "SEED-MSUME-" } },
+      });
+    } finally {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE ledger_entries ENABLE TRIGGER ALL`,
+      );
+    }
+    await prisma.withdrawal.deleteMany({
+      where: { userId: showcase.id, reference: { startsWith: "SEED-MSUME-" } },
+    });
+    await prisma.investment.deleteMany({
+      where: { userId: showcase.id, reference: { startsWith: "SEED-MSUME-" } },
+    });
+    await prisma.payment.deleteMany({
+      where: { userId: showcase.id, reference: { startsWith: "SEED-MSUME-" } },
     });
 
     const kycExisting = await prisma.kycSubmission.findFirst({
@@ -1373,11 +1484,11 @@ async function main() {
 
     // Staggered deposits → rich 14-day cashflow
     const deposits: Array<{ ref: string; major: number; daysAgo: number }> = [
-      { ref: "SEED-MSUME-DEP-01", major: 5_000_000, daysAgo: 13 },
-      { ref: "SEED-MSUME-DEP-02", major: 2_500_000, daysAgo: 10 },
-      { ref: "SEED-MSUME-DEP-03", major: 1_800_000, daysAgo: 7 },
-      { ref: "SEED-MSUME-DEP-04", major: 3_200_000, daysAgo: 4 },
-      { ref: "SEED-MSUME-DEP-05", major: 1_200_000, daysAgo: 1 },
+      { ref: "SEED-MSUME-DEP-01", major: 500, daysAgo: 13 },
+      { ref: "SEED-MSUME-DEP-02", major: 250, daysAgo: 10 },
+      { ref: "SEED-MSUME-DEP-03", major: 180, daysAgo: 7 },
+      { ref: "SEED-MSUME-DEP-04", major: 320, daysAgo: 4 },
+      { ref: "SEED-MSUME-DEP-05", major: 120, daysAgo: 1 },
     ];
     for (const d of deposits) {
       const amount = BigInt(d.major) * 100n;
@@ -1407,7 +1518,7 @@ async function main() {
       userId: showcase.id,
       type: "WALLET_DEPOSIT",
       status: "PENDING",
-      amount: 50000000n,
+      amount: 5000n, // $50.00 pending
     });
 
     // Enroll in every published course + lesson progress
@@ -1514,7 +1625,7 @@ async function main() {
           userId: showcase.id,
           opportunityId: opp.id,
           principalAmount: principal,
-          currency: "TZS",
+          currency: "USD",
           multiplierSnapshot: opp.projectionMultiplier,
           projectedValue: projected,
           status: spec.status,
@@ -1566,7 +1677,7 @@ async function main() {
               userId: showcase.id,
               opportunityId: opp.id,
               principalAmount: principal,
-              currency: "TZS",
+              currency: "USD",
               multiplierSnapshot: opp.projectionMultiplier,
               projectedValue: BigInt(Math.round(Number(principal) * Number(opp.projectionMultiplier))),
               status: "PENDING",
@@ -1593,13 +1704,13 @@ async function main() {
     const wdlSpecs = [
       {
         ref: "SEED-MSUME-WDL-DONE",
-        major: 350_000,
+        major: 35,
         status: "COMPLETED" as const,
         daysAgo: 6,
       },
       {
         ref: "SEED-MSUME-WDL-REVIEW",
-        major: 150_000,
+        major: 15,
         status: "UNDER_REVIEW" as const,
         daysAgo: 2,
       },
@@ -1612,7 +1723,7 @@ async function main() {
         data: {
           userId: showcase.id,
           amount,
-          currency: "TZS",
+          currency: "USD",
           method: "MOBILE_MONEY",
           destinationMasked: "+255***5678",
           status: w.status,

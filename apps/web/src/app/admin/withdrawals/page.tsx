@@ -28,6 +28,7 @@ import {
   WithdrawalStatus,
   type Currency,
   type WithdrawalStatus as WithdrawalStatusType,
+  DEFAULT_CURRENCY,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { WithdrawalView } from "@volt/types";
@@ -157,7 +158,7 @@ function actionBlurb(action: ReviewAction) {
 const createDefaults: CreateFormInput = {
   userId: "",
   amountMajor: 0,
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   method: "MOBILE_MONEY",
   destination: "",
 };
@@ -337,8 +338,8 @@ export default function AdminWithdrawalsPage() {
       : null;
 
   const previewAmount = formatMoney({
-    amount: toMinorUnits(Number(createWatch.amountMajor) || 0, (createWatch.currency as Currency) || "TZS"),
-    currency: (createWatch.currency as Currency) || "TZS",
+    amount: toMinorUnits(Number(createWatch.amountMajor) || 0, (createWatch.currency as Currency) || DEFAULT_CURRENCY),
+    currency: (createWatch.currency as Currency) || DEFAULT_CURRENCY,
   });
 
   const selectedUser = users.find((u) => u.id === createWatch.userId);

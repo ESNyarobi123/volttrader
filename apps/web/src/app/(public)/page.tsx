@@ -13,8 +13,8 @@ import { api } from "@/lib/api";
 
 const STATS = [
   { value: "Learn", label: "Forex Academy" },
-  { value: "Invest", label: "Trading Floor" },
-  { value: "Wallet", label: "Ledger balance" },
+  { value: "Invest", label: "Account Management" },
+  { value: "Wallet", label: "Wallet balance" },
   { value: "Society", label: "Volt community" },
 ];
 

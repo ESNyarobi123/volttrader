@@ -33,6 +33,7 @@ import {
   SUPPORTED_CURRENCIES,
   type Currency,
   type OpportunityStatus as OpportunityStatusType,
+  DEFAULT_CURRENCY,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { OpportunityDetail } from "@volt/types";
@@ -86,7 +87,7 @@ const emptyDefaults: OpportunityFormInput = {
   slug: "",
   summary: "",
   description: "",
-  currency: "TZS",
+  currency: DEFAULT_CURRENCY,
   minAmountMajor: 100000,
   maxAmountMajor: "",
   durationDays: 30,
@@ -273,14 +274,14 @@ export default function AdminOpportunitiesPage() {
           : null;
 
   const previewMin = formatMoney({
-    amount: toMinorUnits(Number(minAmountMajor) || 0, (currencyValue as Currency) || "TZS"),
-    currency: (currencyValue as Currency) || "TZS",
+    amount: toMinorUnits(Number(minAmountMajor) || 0, (currencyValue as Currency) || DEFAULT_CURRENCY),
+    currency: (currencyValue as Currency) || DEFAULT_CURRENCY,
   });
   const previewMax =
     maxAmountMajor && String(maxAmountMajor).trim() !== ""
       ? formatMoney({
-          amount: toMinorUnits(Number(maxAmountMajor) || 0, (currencyValue as Currency) || "TZS"),
-          currency: (currencyValue as Currency) || "TZS",
+          amount: toMinorUnits(Number(maxAmountMajor) || 0, (currencyValue as Currency) || DEFAULT_CURRENCY),
+          currency: (currencyValue as Currency) || DEFAULT_CURRENCY,
         })
       : null;
 

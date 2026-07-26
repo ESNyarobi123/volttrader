@@ -9,7 +9,7 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
     title: "Platform",
     links: [
       { href: "/learn", label: "Learn Forex" },
-      { href: "/trading-floor", label: "Trading Floor" },
+      { href: "/trading-floor", label: "Account Management" },
       { href: "/projects", label: "Projects" },
       { href: "/volt-society", label: "Volt Society" },
     ],

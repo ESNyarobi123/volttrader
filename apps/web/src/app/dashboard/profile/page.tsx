@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowRight,
+  BadgeCheck,
+  Check,
+  Copy,
+  KeyRound,
+  LifeBuoy,
   LogOut,
   ShieldCheck,
-  LifeBuoy,
-  Users,
   UserRound,
-  Mail,
-  Calendar,
-  BadgeCheck,
-  Sparkles,
-  KeyRound,
-  Copy,
-  Check,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -34,17 +33,17 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDate, initials } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
-import { Button } from "@/components/ui/button";
+import { KycDocField } from "@/components/dashboard/kyc-doc-field";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert } from "@/components/ui/alert";
-import { StatTile } from "@/components/ui/stat-tile";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 
 const kycFormSchema = kycSubmissionSchema.extend({
   backImageKey: z.string().max(200).optional(),
@@ -91,6 +90,15 @@ function isTabId(value: string | null): value is TabId {
   return TABS.some((t) => t.id === value);
 }
 
+function shortKyc(status: string) {
+  if (status === "NOT_STARTED") return "None";
+  if (status === "PENDING") return "Pending";
+  if (status === "APPROVED") return "OK";
+  if (status === "REJECTED") return "Rejected";
+  if (status === "NEEDS_MORE_INFO") return "More info";
+  return humanize(status);
+}
+
 export default function DashboardProfilePage() {
   const { user, logout, refresh } = useAuth();
   const router = useRouter();
@@ -105,7 +113,6 @@ export default function DashboardProfilePage() {
   const [kycSuccess, setKycSuccess] = useState(false);
   const [supportSuccess, setSupportSuccess] = useState(false);
   const [communityError, setCommunityError] = useState<string | null>(null);
-  const [communitySuccess, setCommunitySuccess] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
   const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetupView | null>(null);
   const [enableCode, setEnableCode] = useState("");
@@ -121,8 +128,7 @@ export default function DashboardProfilePage() {
     }
   }, [searchParams]);
 
-  const onTabChange = (value: string) => {
-    if (!isTabId(value)) return;
+  const onTabChange = (value: TabId) => {
     setTab(value);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
@@ -157,12 +163,10 @@ export default function DashboardProfilePage() {
 
   const resendVerification = useMutation({
     mutationFn: () => api.post<{ message: string }>("/auth/resend-verification"),
-    onSuccess: (res) => {
-      setVerifyMessage(res.message);
-    },
+    onSuccess: (res) => setVerifyMessage(res.message),
     onError: (err) => {
       setVerifyMessage(
-        apiErrorMessage(err, "Could not resend verification email."),
+        apiErrorMessage(err, "Could not resend verification."),
       );
     },
   });
@@ -208,7 +212,7 @@ export default function DashboardProfilePage() {
 
   const communityQuery = useQuery({
     queryKey: ["community", "me"],
-    queryFn: () => api.get<CommunityMembership>("/community/me"),
+    queryFn: () => api.get<CommunityMembership | null>("/community/me"),
     retry: false,
   });
 
@@ -216,7 +220,6 @@ export default function DashboardProfilePage() {
     mutationFn: () => api.post("/community/join", {}),
     onSuccess: async () => {
       setCommunityError(null);
-      setCommunitySuccess(true);
       await queryClient.invalidateQueries({ queryKey: ["community", "me"] });
     },
     onError: (err) => {
@@ -231,10 +234,10 @@ export default function DashboardProfilePage() {
     onSuccess: (data) => {
       setSecurityError(null);
       setTwoFactorSetup(data);
-      setSecurityFlash("Scan or enter this secret in your authenticator app, then confirm below.");
+      setSecurityFlash("Enter the secret in your app, then confirm.");
     },
     onError: (err) => {
-      setSecurityError(apiErrorMessage(err, "Could not start 2FA setup"));
+      setSecurityError(apiErrorMessage(err, "Could not start 2FA"));
     },
   });
 
@@ -244,7 +247,7 @@ export default function DashboardProfilePage() {
       setSecurityError(null);
       setTwoFactorSetup(null);
       setEnableCode("");
-      setSecurityFlash("Two-factor authentication is now enabled.");
+      setSecurityFlash("2FA enabled.");
       await refresh();
     },
     onError: (err) => {
@@ -262,7 +265,7 @@ export default function DashboardProfilePage() {
       setSecurityError(null);
       setDisableCode("");
       setDisablePassword("");
-      setSecurityFlash("Two-factor authentication has been disabled.");
+      setSecurityFlash("2FA disabled.");
       await refresh();
     },
     onError: (err) => {
@@ -278,261 +281,202 @@ export default function DashboardProfilePage() {
   const kycStatus = kycQuery.data?.kycStatus ?? user?.kycStatus ?? "NOT_STARTED";
   const kycApproved = kycStatus === "APPROVED";
   const societyStatus = communityQuery.data?.status;
-  const tabCopy = useMemo(() => {
-    switch (tab) {
-      case "security":
-        return "Authenticator 2FA is required before you can withdraw funds.";
-      case "kyc":
-        return "Verify your identity before investing or withdrawing.";
-      case "support":
-        return "Send our team a message — payments, courses, KYC or general help.";
-      case "society":
-        return "Connect with learners and investors in the Volt community.";
-      default:
-        return "Update your details, review account status, and manage access.";
-    }
-  }, [tab]);
+  const loading = !user || kycQuery.isLoading;
 
   return (
-    <div className="relative space-y-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-6 h-52 rounded-[2rem] bg-[radial-gradient(55%_80%_at_8%_0%,hsl(350_73%_44%/0.22),transparent_60%),radial-gradient(45%_70%_at_92%_0%,hsl(349_74%_36%/0.14),transparent_55%)]"
-      />
-
-      <div className="relative">
-        <p className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-volt-dim">
-          <UserRound className="h-3.5 w-3.5" />
-          Account
-        </p>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tabCopy}</p>
-      </div>
-
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-volt/30 bg-gradient-to-br from-volt/20 via-surface to-[hsl(0_0%_10%/0.12)] p-5 shadow-card sm:p-6">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-10 -top-16 h-44 w-44 rounded-full bg-volt/30 blur-3xl"
-        />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-volt/40 to-[hsl(351_77%_61%/0.35)] font-display text-xl font-bold text-foreground shadow-volt">
-              {initials(user?.fullName)}
-            </span>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-volt-dim">
-                Member
-              </p>
-              <h2 className="truncate font-display text-2xl font-bold tracking-tight">
-                {user?.fullName ?? "Your profile"}
-              </h2>
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                {user?.email ?? user?.phone ?? "—"}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <Badge variant={statusVariant(kycStatus)}>KYC · {humanize(kycStatus)}</Badge>
-                <Badge variant={user?.emailVerified ? "success" : "warning"}>
-                  {user?.emailVerified ? "Email verified" : "Email unverified"}
-                </Badge>
-                {user?.role ? <Badge variant="default">{humanize(user.role)}</Badge> : null}
-              </div>
-            </div>
-          </div>
-          <Button variant="ghost" className="w-fit shrink-0" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-            Log out
-          </Button>
+    <div className="w-full space-y-5 sm:space-y-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Profile</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Your account.</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="justify-center rounded-full sm:shrink-0"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4" />
+          Log out
+        </Button>
+      </header>
+
+      {/* Stats */}
+      <section className="grid grid-cols-3 gap-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))
+        ) : (
+          <>
+            <Stat
+              accent="volt"
+              icon={ShieldCheck}
+              label="KYC"
+              value={shortKyc(kycStatus)}
+            />
+            <Stat
+              accent="ink"
+              icon={KeyRound}
+              label="2FA"
+              value={user?.twoFactorEnabled ? "On" : "Off"}
+            />
+            <Stat
+              accent="soft"
+              icon={Users}
+              label="Society"
+              value={societyStatus ? humanize(societyStatus) : "None"}
+            />
+          </>
+        )}
       </section>
 
-      <div className="relative grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile
-          label="KYC"
-          value={humanize(kycStatus)}
-          icon={ShieldCheck}
-          tone={kycApproved ? "green" : kycStatus === "PENDING" ? "amber" : "ink"}
-        />
-        <StatTile
-          label="Email"
-          value={user?.emailVerified ? "Verified" : "Pending"}
-          icon={Mail}
-          tone={user?.emailVerified ? "green" : "amber"}
-        />
-        <StatTile
-          label="Society"
-          value={societyStatus ? humanize(societyStatus) : "Not joined"}
-          icon={Users}
-          tone={societyStatus === "ACTIVE" ? "blue" : "ink"}
-        />
-        <StatTile
-          label="Member since"
-          value={user?.createdAt ? formatDate(user.createdAt) : "—"}
-          icon={Calendar}
-          tone="gold"
-        />
-      </div>
+      {/* Focus */}
+      {loading ? (
+        <Skeleton className="h-32 w-full rounded-2xl" />
+      ) : (
+        <section className="flex flex-col gap-4 rounded-2xl border border-volt/25 bg-gradient-to-br from-volt/12 via-surface to-surface p-4 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:p-5">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-ink/90 font-display text-lg font-bold text-white shadow-sm">
+            {initials(user?.fullName)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-volt-dim">
+                Member
+              </p>
+              <Badge variant={statusVariant(kycStatus)} className="text-[10px]">
+                KYC · {humanize(kycStatus)}
+              </Badge>
+              <Badge variant={user?.twoFactorEnabled ? "success" : "warning"} className="text-[10px]">
+                2FA {user?.twoFactorEnabled ? "on" : "off"}
+              </Badge>
+            </div>
+            <h2 className="mt-1 truncate font-display text-lg font-bold tracking-tight">
+              {user?.fullName ?? "—"}
+            </h2>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
+              {user?.email ?? user?.phone ?? "—"}
+              {user?.createdAt ? ` · since ${formatDate(user.createdAt)}` : ""}
+            </p>
+          </div>
+          {!user?.emailVerified && user?.email ? (
+            <Button
+              variant="outline"
+              size="md"
+              className="w-full shrink-0 rounded-full sm:w-auto"
+              disabled={resendVerification.isPending}
+              onClick={() => resendVerification.mutate()}
+            >
+              {resendVerification.isPending ? "Sending…" : "Verify email"}
+            </Button>
+          ) : null}
+        </section>
+      )}
 
-      <Tabs value={tab} onValueChange={onTabChange} className="relative space-y-5">
-        <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TabsList className="flex w-max min-w-full gap-1 rounded-2xl border border-volt/20 bg-gradient-to-br from-volt/10 via-surface to-[hsl(349_74%_36%/0.08)] p-1.5 sm:w-full sm:min-w-0">
-            {TABS.map((item) => (
-              <TabsTrigger key={item.id} value={item.id}>
-                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                  <item.icon className="h-3.5 w-3.5" />
-                  {item.label}
-                  {item.id === "security" ? (
-                    <Badge
-                      variant={user?.twoFactorEnabled ? "success" : "warning"}
-                      className="ml-0.5 hidden sm:inline-flex"
-                    >
-                      {user?.twoFactorEnabled ? "On" : "Off"}
-                    </Badge>
-                  ) : null}
-                  {item.id === "kyc" ? (
-                    <Badge variant={statusVariant(kycStatus)} className="ml-0.5 hidden sm:inline-flex">
-                      {humanize(kycStatus)}
-                    </Badge>
-                  ) : null}
-                  {item.id === "society" && communityQuery.data ? (
-                    <Badge
-                      variant={statusVariant(communityQuery.data.status)}
-                      className="ml-0.5 hidden sm:inline-flex"
-                    >
-                      {humanize(communityQuery.data.status)}
-                    </Badge>
-                  ) : null}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      {verifyMessage ? <Alert variant="volt">{verifyMessage}</Alert> : null}
+
+      {/* Tabs — chip style like Invest filters */}
+      <section className="space-y-3">
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onTabChange(item.id)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                tab === item.id
+                  ? "bg-volt text-volt-foreground"
+                  : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+              )}
+            >
+              <item.icon className="h-3.5 w-3.5" />
+              {item.label}
+            </button>
+          ))}
         </div>
 
         {/* PROFILE */}
-        <TabsContent value="profile" className="mt-0">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] lg:items-start">
-            <Panel
-              title="Profile details"
-              description="Update the name and phone we use across Volt Trades."
-              icon={UserRound}
+        {tab === "profile" ? (
+          <Panel title="Details" icon={UserRound}>
+            <form
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              onSubmit={profileForm.handleSubmit((values) => {
+                setProfileSuccess(false);
+                updateProfile.mutate({
+                  ...values,
+                  phone: values.phone ? values.phone : undefined,
+                  country: values.country ? values.country : undefined,
+                });
+              })}
             >
-              <form
-                className="grid grid-cols-1 gap-4 sm:grid-cols-2"
-                onSubmit={profileForm.handleSubmit((values) => {
-                  setProfileSuccess(false);
-                  updateProfile.mutate({
-                    ...values,
-                    phone: values.phone ? values.phone : undefined,
-                    country: values.country ? values.country : undefined,
-                  });
-                })}
+              <Field
+                label="Full name"
+                htmlFor="fullName"
+                error={profileForm.formState.errors.fullName?.message}
+                className="sm:col-span-2"
               >
-                <Field
-                  label="Full name"
-                  htmlFor="fullName"
-                  error={profileForm.formState.errors.fullName?.message}
-                  className="sm:col-span-2"
+                <Input id="fullName" {...profileForm.register("fullName")} />
+              </Field>
+              <Field
+                label="Phone"
+                htmlFor="phone"
+                error={profileForm.formState.errors.phone?.message}
+              >
+                <Input
+                  id="phone"
+                  placeholder="+255700000000"
+                  {...profileForm.register("phone")}
+                />
+              </Field>
+              <Field label="Country" htmlFor="country">
+                <Input id="country" placeholder="Tanzania" {...profileForm.register("country")} />
+              </Field>
+              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="rounded-full"
+                  disabled={updateProfile.isPending}
                 >
-                  <Input id="fullName" {...profileForm.register("fullName")} />
-                </Field>
-                <Field
-                  label="Phone"
-                  htmlFor="phone"
-                  error={profileForm.formState.errors.phone?.message}
-                >
-                  <Input
-                    id="phone"
-                    placeholder="+255700000000"
-                    {...profileForm.register("phone")}
-                  />
-                </Field>
-                <Field label="Country" htmlFor="country">
-                  <Input
-                    id="country"
-                    placeholder="Tanzania"
-                    {...profileForm.register("country")}
-                  />
-                </Field>
-                <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-                  <Button type="submit" variant="primary" disabled={updateProfile.isPending}>
-                    {updateProfile.isPending ? "Saving…" : "Save changes"}
-                  </Button>
-                  {profileSuccess ? (
-                    <span className="inline-flex items-center gap-1 text-sm text-success">
-                      <BadgeCheck className="h-4 w-4" />
-                      Saved
-                    </span>
-                  ) : null}
-                </div>
-                {updateProfile.error ? (
-                  <Alert variant="danger" className="sm:col-span-2">
-                    {apiErrorMessage(updateProfile.error, "Could not save")}
-                  </Alert>
-                ) : null}
-              </form>
-            </Panel>
-
-            <aside className="space-y-4 lg:sticky lg:top-24">
-              <div className="overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-card">
-                <div className="border-b border-border bg-gradient-to-br from-volt/15 via-surface to-[hsl(0_0%_10%/0.1)] px-5 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-volt-dim">
-                    Account snapshot
-                  </p>
-                  <p className="mt-1 font-display text-lg font-bold tracking-tight">Sign-in identity</p>
-                </div>
-                <div className="space-y-2 p-4">
-                  <Meta label="Email" value={user?.email ?? "—"} />
-                  <Meta
-                    label="Email status"
-                    value={user?.emailVerified ? "Verified" : "Not verified"}
-                  />
-                  <Meta label="Role" value={user ? humanize(user.role) : "—"} />
-                  <Meta label="Member since" value={formatDate(user?.createdAt)} />
-                </div>
-                {user?.email && !user.emailVerified ? (
-                  <div className="border-t border-border px-4 py-4">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="w-full rounded-full"
-                      disabled={resendVerification.isPending}
-                      onClick={() => resendVerification.mutate()}
-                    >
-                      {resendVerification.isPending ? "Sending…" : "Resend verification email"}
-                    </Button>
-                    {verifyMessage ? (
-                      <p className="mt-2 text-center text-xs text-muted-foreground">{verifyMessage}</p>
-                    ) : null}
-                  </div>
+                  {updateProfile.isPending ? "Saving…" : "Save"}
+                </Button>
+                {profileSuccess ? (
+                  <span className="inline-flex items-center gap-1 text-sm text-success">
+                    <BadgeCheck className="h-4 w-4" />
+                    Saved
+                  </span>
                 ) : null}
               </div>
-            </aside>
-          </div>
-        </TabsContent>
+              {updateProfile.error ? (
+                <Alert variant="danger" className="sm:col-span-2">
+                  {apiErrorMessage(updateProfile.error, "Could not save")}
+                </Alert>
+              ) : null}
+            </form>
+          </Panel>
+        ) : null}
 
-        {/* SECURITY / 2FA */}
-        <TabsContent value="security" className="mt-0">
+        {/* SECURITY */}
+        {tab === "security" ? (
           <Panel
-            title="Two-factor authentication"
-            description="Required for withdrawals. Use Google Authenticator, Authy, or similar."
+            title="2FA"
             icon={KeyRound}
             action={
               <Badge variant={user?.twoFactorEnabled ? "success" : "warning"}>
-                {user?.twoFactorEnabled ? "Enabled" : "Not enabled"}
+                {user?.twoFactorEnabled ? "On" : "Off"}
               </Badge>
             }
           >
+            <p className="mb-3 text-sm text-muted-foreground">Required for withdrawals.</p>
             {securityFlash ? <Alert variant="volt">{securityFlash}</Alert> : null}
             {securityError ? <Alert variant="danger">{securityError}</Alert> : null}
 
             {user?.twoFactorEnabled ? (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  2FA is on. Withdrawals require a fresh 6-digit code from your authenticator.
-                </p>
+              <div className="mt-3 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="disable-totp">Authenticator code</Label>
+                    <Label htmlFor="disable-totp">Code</Label>
                     <Input
                       id="disable-totp"
                       inputMode="numeric"
@@ -543,7 +487,7 @@ export default function DashboardProfilePage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="disable-password">Account password</Label>
+                    <Label htmlFor="disable-password">Password</Label>
                     <Input
                       id="disable-password"
                       type="password"
@@ -554,6 +498,7 @@ export default function DashboardProfilePage() {
                 </div>
                 <Button
                   variant="danger"
+                  className="rounded-full"
                   disabled={disable2fa.isPending || disableCode.length !== 6 || !disablePassword}
                   onClick={() => {
                     setSecurityFlash(null);
@@ -564,10 +509,11 @@ export default function DashboardProfilePage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="mt-3 space-y-3">
                 {!twoFactorSetup ? (
                   <Button
                     variant="primary"
+                    className="rounded-full shadow-volt"
                     disabled={setup2fa.isPending}
                     onClick={() => {
                       setSecurityFlash(null);
@@ -575,13 +521,13 @@ export default function DashboardProfilePage() {
                       setup2fa.mutate();
                     }}
                   >
-                    {setup2fa.isPending ? "Preparing…" : "Set up authenticator"}
+                    {setup2fa.isPending ? "Preparing…" : "Set up 2FA"}
                   </Button>
                 ) : (
-                  <div className="space-y-4">
+                  <>
                     <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Manual secret
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Secret
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <code className="break-all font-mono text-sm font-semibold">
@@ -591,13 +537,18 @@ export default function DashboardProfilePage() {
                           type="button"
                           size="sm"
                           variant="outline"
+                          className="rounded-full"
                           onClick={async () => {
                             await navigator.clipboard.writeText(twoFactorSetup.secret);
                             setCopiedSecret(true);
                             window.setTimeout(() => setCopiedSecret(false), 1500);
                           }}
                         >
-                          {copiedSecret ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedSecret ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
                           Copy
                         </Button>
                       </div>
@@ -605,11 +556,11 @@ export default function DashboardProfilePage() {
                         href={twoFactorSetup.otpauthUrl}
                         className="mt-3 inline-block text-sm font-semibold text-volt-dim underline"
                       >
-                        Open in authenticator app
+                        Open authenticator
                       </a>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="enable-totp">Confirm with 6-digit code</Label>
+                      <Label htmlFor="enable-totp">Confirm code</Label>
                       <Input
                         id="enable-totp"
                         inputMode="numeric"
@@ -621,6 +572,7 @@ export default function DashboardProfilePage() {
                     </div>
                     <Button
                       variant="primary"
+                      className="rounded-full shadow-volt"
                       disabled={enable2fa.isPending || enableCode.length !== 6}
                       onClick={() => {
                         setSecurityFlash(null);
@@ -629,335 +581,297 @@ export default function DashboardProfilePage() {
                     >
                       {enable2fa.isPending ? "Enabling…" : "Enable 2FA"}
                     </Button>
-                  </div>
+                  </>
                 )}
               </div>
             )}
           </Panel>
-        </TabsContent>
+        ) : null}
 
         {/* KYC */}
-        <TabsContent value="kyc" className="mt-0">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] lg:items-start">
-            <Panel
-              title="Identity verification"
-              description="Required before investing or withdrawing funds."
-              icon={ShieldCheck}
-              action={<Badge variant={statusVariant(kycStatus)}>{humanize(kycStatus)}</Badge>}
-            >
-              {kycQuery.isLoading ? (
-                <Skeleton className="h-28 w-full rounded-xl" />
-              ) : kycApproved ? (
-                <div className="rounded-2xl border border-success/25 bg-gradient-to-br from-success/10 via-surface to-surface p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-success/15 text-success">
-                      <BadgeCheck className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <p className="font-semibold tracking-tight">Identity verified</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Your KYC is approved. You can invest and request withdrawals when the
-                        feature is enabled for your account.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <form
-                  className="flex flex-col gap-4"
-                  onSubmit={kycForm.handleSubmit((values) => {
-                    setKycSuccess(false);
-                    submitKyc.mutate({
-                      ...values,
-                      backImageKey: values.backImageKey ? values.backImageKey : undefined,
-                      selfieKey: values.selfieKey ? values.selfieKey : undefined,
-                    });
-                  })}
-                >
-                  {kycQuery.data?.submission?.reviewerNote ? (
-                    <p className="rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Reviewer note: </span>
-                      {kycQuery.data.submission.reviewerNote}
-                    </p>
-                  ) : null}
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Document type" htmlFor="documentType">
-                      <Select id="documentType" {...kycForm.register("documentType")}>
-                        <option value="NATIONAL_ID">National ID</option>
-                        <option value="PASSPORT">Passport</option>
-                        <option value="DRIVER_LICENSE">Driver&apos;s license</option>
-                      </Select>
-                    </Field>
-                    <Field
-                      label="Document number"
-                      htmlFor="documentNumber"
-                      error={kycForm.formState.errors.documentNumber?.message}
-                    >
-                      <Input id="documentNumber" {...kycForm.register("documentNumber")} />
-                    </Field>
-                    <Field
-                      label="Front image key"
-                      htmlFor="frontImageKey"
-                      error={kycForm.formState.errors.frontImageKey?.message}
-                    >
-                      <Input
-                        id="frontImageKey"
-                        placeholder="manual-review/…"
-                        {...kycForm.register("frontImageKey")}
-                      />
-                    </Field>
-                    <Field label="Back image key (optional)" htmlFor="backImageKey">
-                      <Input
-                        id="backImageKey"
-                        placeholder="manual-review/…"
-                        {...kycForm.register("backImageKey")}
-                      />
-                    </Field>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    Secure file upload via presigned URL is coming soon. For now, enter a reference
-                    key — our team will match it during manual review.
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button type="submit" variant="primary" disabled={submitKyc.isPending}>
-                      {submitKyc.isPending ? "Submitting…" : "Submit for review"}
-                    </Button>
-                    {kycSuccess ? (
-                      <span className="text-sm text-success">Submitted for review.</span>
-                    ) : null}
-                  </div>
-                  {submitKyc.error ? (
-                    <Alert variant="danger">
-                      {apiErrorMessage(submitKyc.error, "Could not submit")}
-                    </Alert>
-                  ) : null}
-                </form>
-              )}
-            </Panel>
-
-            <aside className="lg:sticky lg:top-24">
-              <div className="overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-card">
-                <div className="border-b border-border bg-gradient-to-br from-success/10 via-surface to-surface px-5 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-success">
-                    Why KYC
-                  </p>
-                  <p className="mt-1 font-display text-lg font-bold tracking-tight">Protects your capital</p>
-                </div>
-                <ul className="space-y-3 p-5 text-sm text-muted-foreground">
-                  <li className="flex gap-2">
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-volt-dim" />
-                    Needed before real-money invest & withdraw flows.
-                  </li>
-                  <li className="flex gap-2">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-volt-dim" />
-                    Helps us verify you own the account and payout destination.
-                  </li>
-                  <li className="flex gap-2">
-                    <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-volt-dim" />
-                    Review is manual for now — status updates appear here.
-                  </li>
-                </ul>
-                {kycQuery.data?.submission ? (
-                  <div className="border-t border-border p-4">
-                    <Meta
-                      label="Last submission"
-                      value={`${humanize(kycQuery.data.submission.documentType)} · ${formatDate(kycQuery.data.submission.createdAt)}`}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </aside>
-          </div>
-        </TabsContent>
-
-        {/* SUPPORT */}
-        <TabsContent value="support" className="mt-0">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] lg:items-start">
-            <Panel
-              title="Contact support"
-              description="Tell us what you need — we’ll follow up by email."
-              icon={LifeBuoy}
-            >
-              <form
-                className="flex flex-col gap-4"
-                onSubmit={supportForm.handleSubmit((values) => {
-                  setSupportSuccess(false);
-                  submitTicket.mutate(values);
-                })}
-              >
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field
-                    label="Subject"
-                    htmlFor="subject"
-                    error={supportForm.formState.errors.subject?.message}
-                  >
-                    <Input id="subject" {...supportForm.register("subject")} />
-                  </Field>
-                  <Field label="Category" htmlFor="category">
-                    <Select id="category" {...supportForm.register("category")}>
-                      <option value="GENERAL">General</option>
-                      <option value="PAYMENTS">Payments</option>
-                      <option value="COURSES">Courses</option>
-                      <option value="INVESTMENTS">Investments</option>
-                      <option value="KYC">KYC</option>
-                    </Select>
-                  </Field>
-                </div>
-                <Field
-                  label="Message"
-                  htmlFor="message"
-                  error={supportForm.formState.errors.message?.message}
-                >
-                  <Textarea id="message" rows={5} {...supportForm.register("message")} />
-                </Field>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button type="submit" variant="primary" disabled={submitTicket.isPending}>
-                    {submitTicket.isPending ? "Sending…" : "Send message"}
-                  </Button>
-                  {supportSuccess ? (
-                    <span className="text-sm text-success">
-                      Ticket submitted — we&apos;ll be in touch.
-                    </span>
-                  ) : null}
-                </div>
-                {submitTicket.error ? (
-                  <Alert variant="danger">
-                    {apiErrorMessage(submitTicket.error, "Could not send message")}
-                  </Alert>
-                ) : null}
-              </form>
-            </Panel>
-
-            <aside className="lg:sticky lg:top-24">
-              <div className="overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-card">
-                <div className="border-b border-border bg-gradient-to-br from-[hsl(0_0%_10%/0.14)] via-surface to-surface px-5 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--accent-blue))]">
-                    Before you write
-                  </p>
-                  <p className="mt-1 font-display text-lg font-bold tracking-tight">Faster answers</p>
-                </div>
-                <ul className="space-y-3 p-5 text-sm text-muted-foreground">
-                  <li>Include payment reference or investment ID if relevant.</li>
-                  <li>For KYC, mention document type and submission date.</li>
-                  <li>We respond to the email on your account.</li>
-                </ul>
-              </div>
-            </aside>
-          </div>
-        </TabsContent>
-
-        {/* SOCIETY */}
-        <TabsContent value="society" className="mt-0">
+        {tab === "kyc" ? (
           <Panel
-            title="Volt Society"
-            description="Learn, connect and build with other Volt members."
-            icon={Users}
+            title="Identity"
+            icon={ShieldCheck}
+            action={<Badge variant={statusVariant(kycStatus)}>{humanize(kycStatus)}</Badge>}
           >
-            {communityQuery.isLoading ? (
-              <Skeleton className="h-24 w-full rounded-xl" />
-            ) : communityQuery.data ? (
-              <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--accent-blue)/0.28)] bg-gradient-to-br from-[hsl(var(--accent-blue)/0.14)] via-surface to-surface p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[hsl(var(--accent-blue)/0.15)] text-[hsl(var(--accent-blue))]">
-                      <Users className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <Badge variant={statusVariant(communityQuery.data.status)}>
-                        Member — {humanize(communityQuery.data.status)}
-                      </Badge>
-                      {communityQuery.data.joinedAt ? (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Joined {formatDate(communityQuery.data.joinedAt)}
-                        </p>
-                      ) : null}
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        You&apos;re on the Volt Society list. Updates will appear as community
-                        activities open.
-                      </p>
-                    </div>
-                  </div>
-                  <Sparkles className="hidden h-8 w-8 text-volt-dim sm:block" />
+            {kycQuery.isLoading ? (
+              <Skeleton className="h-28 w-full rounded-xl" />
+            ) : kycApproved ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-success/25 bg-success/10 p-4">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-success/15 text-success">
+                  <BadgeCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-semibold">Verified</p>
+                  <p className="text-sm text-muted-foreground">Ready for invest & withdraw.</p>
                 </div>
               </div>
             ) : (
-              <div className="relative overflow-hidden rounded-2xl border border-volt/25 bg-gradient-to-br from-volt/12 via-surface to-surface p-5">
-                <p className="text-sm text-muted-foreground">
-                  Request membership to learn, connect and build with other Volt members.
-                </p>
+              <form
+                className="flex flex-col gap-4"
+                onSubmit={kycForm.handleSubmit((values) => {
+                  setKycSuccess(false);
+                  submitKyc.mutate({
+                    ...values,
+                    backImageKey: values.backImageKey?.trim()
+                      ? values.backImageKey.trim()
+                      : undefined,
+                    selfieKey: values.selfieKey?.trim() ? values.selfieKey.trim() : undefined,
+                  });
+                })}
+              >
+                {kycQuery.data?.submission?.reviewerNote ? (
+                  <p className="rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Note: </span>
+                    {kycQuery.data.submission.reviewerNote}
+                  </p>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Document" htmlFor="documentType">
+                    <Select id="documentType" {...kycForm.register("documentType")}>
+                      <option value="NATIONAL_ID">National ID</option>
+                      <option value="PASSPORT">Passport</option>
+                      <option value="DRIVER_LICENSE">Driver&apos;s license</option>
+                    </Select>
+                  </Field>
+                  <Field
+                    label="Number"
+                    htmlFor="documentNumber"
+                    error={kycForm.formState.errors.documentNumber?.message}
+                  >
+                    <Input id="documentNumber" {...kycForm.register("documentNumber")} />
+                  </Field>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-border bg-surface-2/20 p-3 sm:p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-volt-dim">
+                    Documents
+                  </p>
+                  <KycDocField
+                    label="Front"
+                    required
+                    value={kycForm.watch("frontImageKey") ?? ""}
+                    onChange={(key) =>
+                      kycForm.setValue("frontImageKey", key, { shouldValidate: true })
+                    }
+                    error={kycForm.formState.errors.frontImageKey?.message}
+                    hint="Storage key from upload or paste"
+                  />
+                  <KycDocField
+                    label="Back"
+                    value={kycForm.watch("backImageKey") ?? ""}
+                    onChange={(key) =>
+                      kycForm.setValue("backImageKey", key, { shouldValidate: true })
+                    }
+                    hint="Optional"
+                  />
+                  <KycDocField
+                    label="Selfie"
+                    value={kycForm.watch("selfieKey") ?? ""}
+                    onChange={(key) =>
+                      kycForm.setValue("selfieKey", key, { shouldValidate: true })
+                    }
+                    hint="Optional"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="rounded-full shadow-volt"
+                    disabled={submitKyc.isPending}
+                  >
+                    {submitKyc.isPending ? "Submitting…" : "Submit for review"}
+                  </Button>
+                  {kycSuccess ? <span className="text-sm text-success">Submitted.</span> : null}
+                </div>
+                {submitKyc.error ? (
+                  <Alert variant="danger">
+                    {apiErrorMessage(submitKyc.error, "Could not submit")}
+                  </Alert>
+                ) : null}
+                {kycQuery.data?.submission ? (
+                  <p className="text-xs text-muted-foreground">
+                    Last: {humanize(kycQuery.data.submission.documentType)} ·{" "}
+                    {formatDate(kycQuery.data.submission.createdAt)}
+                  </p>
+                ) : null}
+              </form>
+            )}
+          </Panel>
+        ) : null}
+
+        {/* SUPPORT */}
+        {tab === "support" ? (
+          <Panel title="Support" icon={LifeBuoy}>
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={supportForm.handleSubmit((values) => {
+                setSupportSuccess(false);
+                submitTicket.mutate(values);
+              })}
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field
+                  label="Subject"
+                  htmlFor="subject"
+                  error={supportForm.formState.errors.subject?.message}
+                >
+                  <Input id="subject" {...supportForm.register("subject")} />
+                </Field>
+                <Field label="Category" htmlFor="category">
+                  <Select id="category" {...supportForm.register("category")}>
+                    <option value="GENERAL">General</option>
+                    <option value="PAYMENTS">Payments</option>
+                    <option value="COURSES">Courses</option>
+                    <option value="INVESTMENTS">Investments</option>
+                    <option value="KYC">KYC</option>
+                  </Select>
+                </Field>
+              </div>
+              <Field
+                label="Message"
+                htmlFor="message"
+                error={supportForm.formState.errors.message?.message}
+              >
+                <Textarea id="message" rows={4} {...supportForm.register("message")} />
+              </Field>
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
-                  variant="secondary"
-                  className="mt-4 w-fit rounded-full"
+                  type="submit"
+                  variant="primary"
+                  className="rounded-full shadow-volt"
+                  disabled={submitTicket.isPending}
+                >
+                  {submitTicket.isPending ? "Sending…" : "Send"}
+                </Button>
+                {supportSuccess ? <span className="text-sm text-success">Sent.</span> : null}
+              </div>
+              {submitTicket.error ? (
+                <Alert variant="danger">
+                  {apiErrorMessage(submitTicket.error, "Could not send")}
+                </Alert>
+              ) : null}
+            </form>
+          </Panel>
+        ) : null}
+
+        {/* SOCIETY */}
+        {tab === "society" ? (
+          <Panel title="Society" icon={Users}>
+            {communityQuery.isLoading ? (
+              <Skeleton className="h-24 w-full rounded-xl" />
+            ) : communityQuery.data ? (
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink/90 text-white">
+                  <Users className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <Badge variant={statusVariant(communityQuery.data.status)}>
+                    {humanize(communityQuery.data.status)}
+                  </Badge>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {communityQuery.data.joinedAt
+                      ? `Since ${formatDate(communityQuery.data.joinedAt)}`
+                      : "Membership recorded."}
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/society"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "rounded-full",
+                  )}
+                >
+                  Open
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <p className="flex-1 text-sm text-muted-foreground">Join the waitlist.</p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="rounded-full shadow-volt"
                   onClick={() => joinCommunity.mutate()}
                   disabled={joinCommunity.isPending}
                 >
-                  {joinCommunity.isPending ? "Joining…" : "Join Volt Society"}
+                  {joinCommunity.isPending ? "Joining…" : "Join"}
                 </Button>
               </div>
             )}
-            {communitySuccess ? (
-              <p className="mt-3 text-sm text-success">Welcome to Volt Society.</p>
-            ) : null}
             {communityError ? (
               <Alert variant="danger" className="mt-3">
                 {communityError}
               </Alert>
             ) : null}
           </Panel>
-        </TabsContent>
-      </Tabs>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function Stat({
+  accent,
+  icon: Icon,
+  label,
+  value,
+}: {
+  accent: "volt" | "ink" | "soft";
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  const bar =
+    accent === "volt" ? "bg-volt" : accent === "ink" ? "bg-ink" : "bg-[hsl(351_77%_61%)]";
+
+  return (
+    <div className="relative min-w-0 overflow-hidden rounded-2xl border border-border bg-surface p-3 shadow-card sm:p-4">
+      <span className={cn("absolute inset-y-0 left-0 w-1", bar)} aria-hidden />
+      <div className="flex items-start justify-between gap-2 pl-2">
+        <div className="min-w-0">
+          <p className="truncate font-display text-lg font-bold tracking-tight sm:text-xl">
+            {value}
+          </p>
+          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">{label}</p>
+        </div>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-volt/12 text-volt-dim">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
     </div>
   );
 }
 
 function Panel({
   title,
-  description,
   icon: Icon,
   action,
   children,
 }: {
   title: string;
-  description: string;
   icon: LucideIcon;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-[1.75rem] border border-border bg-gradient-to-br from-surface via-surface to-surface-2 shadow-card">
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-volt via-[hsl(349_74%_36%)] to-[hsl(349_74%_36%)] opacity-80"
-      />
-      <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-volt/15 text-volt-dim">
-              <Icon className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="font-display text-lg font-bold tracking-tight">{title}</h2>
-              <p className="text-sm text-muted-foreground">{description}</p>
-            </div>
-          </div>
-          {action}
+    <section className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-volt/12 text-volt-dim">
+            <Icon className="h-4 w-4" />
+          </span>
+          <h2 className="font-display text-lg font-bold tracking-tight">{title}</h2>
         </div>
-        {children}
+        {action}
       </div>
+      {children}
     </section>
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border/70 bg-surface-2/40 px-3 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 break-all text-sm font-medium">{value}</p>
-    </div>
-  );
-}

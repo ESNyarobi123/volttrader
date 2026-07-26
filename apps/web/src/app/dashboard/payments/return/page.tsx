@@ -90,8 +90,8 @@ function PaymentReturnContent() {
 
       <SoftNotice>
         {mockSimulateEnabled
-          ? "Local/dev helper: simulate settles through an authenticated server path (ALLOW_MOCK_PAYMENTS). Production credits only via a verified provider webhook."
-          : "Funds are credited only after a verified server-side provider webhook — never from this page alone."}
+          ? "Payment confirmation usually arrives from your bank or mobile money provider. You can also use the buttons below while testing."
+          : "Your wallet updates after the payment provider confirms this checkout — usually within a few moments."}
       </SoftNotice>
 
       {localError ? <Alert variant="danger">{localError}</Alert> : null}

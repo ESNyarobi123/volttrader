@@ -43,7 +43,7 @@ export function ForexCoursePlans({
             Choose the perfect Forex course plan
           </h2>
           <p className="mt-2 text-sm text-muted-foreground md:text-base">
-            Clear academy tiers — pick what fits you. Admin can update these plans anytime.
+            From free foundations to full mastery — choose the plan that matches your learning pace.
           </p>
         </div>
 

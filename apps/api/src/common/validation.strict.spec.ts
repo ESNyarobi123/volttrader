@@ -13,7 +13,7 @@ describe("strict DTO schemas (@volt/validation)", () => {
   it("rejects unknown fields on deposit", () => {
     const result = depositSchema.safeParse({
       amount: 1000,
-      currency: "TZS",
+      currency: "USD",
       hackerField: 1,
     });
     expect(result.success).toBe(false);

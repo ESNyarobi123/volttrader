@@ -38,7 +38,7 @@ const PATHS: Path[] = [
     step: "02",
     title: "Manage capital",
     description:
-      "One wallet, one immutable ledger. Deposit, track every move, and withdraw with full visibility.",
+      "One wallet for deposits, tracking, and withdrawals — every move visible in your history.",
     href: "/dashboard/wallet",
     cta: "Open wallet",
     icon: Wallet,
@@ -49,9 +49,9 @@ const PATHS: Path[] = [
     step: "03",
     title: "Explore opportunities",
     description:
-      "Curated trading-floor allocations with clear risk categories and projected outcomes — never guarantees.",
+      "Curated account-management packages with clear risk categories and projected profits — never guarantees.",
     href: "/trading-floor",
-    cta: "View floor",
+    cta: "View investments",
     icon: TrendingUp,
     accent: "blue",
     preview: "floor",
@@ -123,8 +123,7 @@ function PathPreview({ kind }: { kind: Path["preview"] }) {
               Available
             </p>
             <p className="mt-0.5 font-display text-xl font-bold tracking-tight">
-              1,250,000
-              <span className="ml-1 text-xs font-semibold text-muted-foreground">TZS</span>
+              $1,250
             </p>
           </div>
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-[hsl(142_65%_29%/0.2)] text-[hsl(162_45%_32%)]">
@@ -148,7 +147,7 @@ function PathPreview({ kind }: { kind: Path["preview"] }) {
     <div className="relative h-28 overflow-hidden rounded-xl bg-gradient-to-br from-[hsl(0_0%_10%/0.16)] via-surface to-surface-2 p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(213_70%_38%)]">
-          Trading floor
+          Account mgmt
         </span>
         <LineChart className="h-3.5 w-3.5 text-[hsl(351_77%_61%)]" />
       </div>

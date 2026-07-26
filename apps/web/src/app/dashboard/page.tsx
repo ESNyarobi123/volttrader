@@ -11,9 +11,11 @@ import {
   Wallet,
 } from "lucide-react";
 import type {
+  CourseSummary,
   EnrollmentView,
   InvestmentView,
   LedgerEntryView,
+  OpportunitySummary,
   PortfolioSummary,
 } from "@volt/types";
 import { api } from "@/lib/api";
@@ -55,6 +57,16 @@ export default function DashboardOverviewPage() {
     queryFn: () => api.get<LedgerEntryView[]>("/wallet/transactions?page=1&pageSize=8"),
   });
 
+  const coursesCatalogQuery = useQuery({
+    queryKey: ["courses", "ALL"],
+    queryFn: () => api.get<CourseSummary[]>("/courses"),
+  });
+
+  const openOppsQuery = useQuery({
+    queryKey: ["opportunities", "open"],
+    queryFn: () => api.get<OpportunitySummary[]>("/opportunities"),
+  });
+
   const enrollments = enrollmentsQuery.data ?? [];
   const investments = investmentsQuery.data ?? [];
   const activity = activityQuery.data ?? [];
@@ -65,6 +77,8 @@ export default function DashboardOverviewPage() {
   );
   const courseCards = enrollments.slice(0, 4);
   const investCards = (activeInvestments.length ? activeInvestments : investments).slice(0, 3);
+  const recommendedCourses = (coursesCatalogQuery.data ?? []).slice(0, 4);
+  const recommendedOpps = (openOppsQuery.data ?? []).slice(0, 4);
 
   const loading =
     portfolioQuery.isLoading ||
@@ -89,10 +103,10 @@ export default function DashboardOverviewPage() {
             title="KYC needed before investing or withdrawing"
             action={
               <Link
-                href="/dashboard/profile"
+                href="/dashboard/profile?tab=kyc"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full")}
               >
-                Open profile
+                Verify KYC
               </Link>
             }
           >
@@ -142,12 +156,14 @@ export default function DashboardOverviewPage() {
           )}
         </section>
 
-        {/* My Courses */}
+        {/* My Courses / Recommended */}
         <section>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-bold tracking-tight">My courses</h2>
+            <h2 className="font-display text-lg font-bold tracking-tight">
+              {courseCards.length === 0 ? "Recommended courses" : "My courses"}
+            </h2>
             <Link
-              href="/dashboard/learn"
+              href={courseCards.length === 0 ? "/dashboard/learn/explore" : "/dashboard/learn"}
               className="inline-flex items-center gap-1 text-xs font-semibold text-volt-dim hover:text-foreground"
             >
               View all
@@ -155,19 +171,59 @@ export default function DashboardOverviewPage() {
             </Link>
           </div>
 
-          {enrollmentsQuery.isLoading ? (
+          {enrollmentsQuery.isLoading ||
+          (courseCards.length === 0 && coursesCatalogQuery.isLoading) ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-28 rounded-2xl" />
               ))}
             </div>
           ) : courseCards.length === 0 ? (
-            <EmptyBlock
-              title="No Forex course yet"
-              body="Pick a plan from the academy and start building skills."
-              href="/learn"
-              cta="Browse academy"
-            />
+            recommendedCourses.length === 0 ? (
+              <EmptyBlock
+                title="No courses yet"
+                body="Academy catalogue is empty."
+                href="/dashboard/learn/explore"
+                cta="Browse academy"
+              />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {recommendedCourses.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/courses/${c.slug}`}
+                    className="group flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-card transition hover:border-volt/35 hover:shadow-lift sm:p-4"
+                  >
+                    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-ink/90 text-white">
+                      <BookOpen className="h-6 w-6" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="volt" className="text-[10px]">
+                          {humanize(c.level)}
+                        </Badge>
+                        {c.accessType === "FREE" ? (
+                          <Badge variant="success" className="text-[10px]">
+                            Free
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 truncate font-semibold group-hover:text-volt-dim">
+                        {c.title}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {c.accessType === "FREE" ? "Free" : formatMoney(c.price)} ·{" "}
+                        {c.lessonsCount} lessons
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-semibold text-volt-dim">
+                      {c.accessType === "FREE" ? "Enroll" : "Buy"}
+                      <ArrowRight className="ml-0.5 inline h-3 w-3" />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {courseCards.map((e) => (
@@ -208,32 +264,72 @@ export default function DashboardOverviewPage() {
           )}
         </section>
 
-        {/* Investments — maps to LMS “Quiz” card row */}
+        {/* Investments / Recommended */}
         <section>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-bold tracking-tight">My investments</h2>
+            <h2 className="font-display text-lg font-bold tracking-tight">
+              {investCards.length === 0 ? "Open opportunities" : "My investments"}
+            </h2>
             <Link
-              href="/dashboard/invest"
+              href={
+                investCards.length === 0 ? "/dashboard/invest/explore" : "/dashboard/invest"
+              }
               className="inline-flex items-center gap-1 text-xs font-semibold text-volt-dim hover:text-foreground"
             >
-              Portfolio
+              {investCards.length === 0 ? "View all" : "Portfolio"}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          {investmentsQuery.isLoading ? (
+          {investmentsQuery.isLoading ||
+          (investCards.length === 0 && openOppsQuery.isLoading) ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-40 rounded-2xl" />
               ))}
             </div>
           ) : investCards.length === 0 ? (
-            <EmptyBlock
-              title="No investment yet"
-              body="Explore the Trading Floor when you’re ready. Targets are not guarantees."
-              href="/trading-floor"
-              cta="Open Trading Floor"
-            />
+            recommendedOpps.length === 0 ? (
+              <EmptyBlock
+                title="No opportunities open"
+                body="Check back soon. Targets are not guarantees."
+                href="/trading-floor"
+                cta="Trading Floor"
+              />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {recommendedOpps.map((opp) => (
+                  <Link
+                    key={opp.id}
+                    href={`/trading-floor/${opp.slug}`}
+                    className="group flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-card transition hover:border-volt/35 hover:shadow-lift sm:p-4"
+                  >
+                    <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-ink/90 text-white">
+                      <TrendingUp className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <Badge variant="default" className="text-[10px]">
+                        {humanize(opp.riskCategory)}
+                      </Badge>
+                      <p className="mt-1 truncate font-semibold group-hover:text-volt-dim">
+                        {opp.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        From {formatMoney({ amount: opp.minAmount, currency: opp.currency })} ·{" "}
+                        {opp.durationDays}d
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        Targets are not guarantees
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-semibold text-volt-dim">
+                      Open
+                      <ArrowRight className="ml-0.5 inline h-3 w-3" />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {investCards.map((inv) => (

@@ -73,7 +73,7 @@ export class PaymentsService {
   // Admin-published deposit instructions (manual mobile money / bank).
   // -------------------------------------------------------------------------
   async getDepositMethods(): Promise<DepositMethodsView> {
-    const currency = (this.config.get<string>("DEFAULT_CURRENCY") ?? "TZS") as Currency;
+    const currency = (this.config.get<string>("DEFAULT_CURRENCY") ?? "USD") as Currency;
     const settings =
       (await this.prisma.platformSettings.findUnique({ where: { id: "default" } })) ??
       (await this.prisma.platformSettings.create({

@@ -324,7 +324,7 @@ model Course {
   description      String
   learningOutcomes String[]     @map("learning_outcomes")
   priceAmount      BigInt       @default(0) @map("price_amount")
-  priceCurrency    Currency     @default(TZS) @map("price_currency")
+  priceCurrency    Currency     @default(USD) @map("price_currency")
   accessType       AccessType   @default(PAID) @map("access_type")
   durationMinutes  Int          @default(0) @map("duration_minutes")
   thumbnailKey     String?      @map("thumbnail_key")
@@ -350,7 +350,7 @@ model CoursePlan {
   name          String
   subtitle      String
   priceAmount   BigInt   @default(0) @map("price_amount")
-  priceCurrency Currency @default(TZS) @map("price_currency")
+  priceCurrency Currency @default(USD) @map("price_currency")
   /// month | year | once — ignored when price is 0 (shown as Free)
   billingPeriod String   @default("month") @map("billing_period")
   features      String[]
@@ -373,7 +373,7 @@ model InvestmentPlan {
   name                 String
   subtitle             String
   minAmount            BigInt          @map("min_amount")
-  currency             Currency        @default(TZS)
+  currency             Currency        @default(USD)
   durationDays         Int             @default(30) @map("duration_days")
   /// Compliant label only — never “guaranteed returns”.
   projectionLabel      ProjectionLabel @default(TARGET_PERFORMANCE) @map("projection_label")
@@ -499,7 +499,7 @@ model Opportunity {
   name                 String
   summary              String
   description          String
-  currency             Currency          @default(TZS)
+  currency             Currency          @default(USD)
   minAmount            BigInt            @map("min_amount")
   maxAmount            BigInt?           @map("max_amount")
   durationDays         Int               @map("duration_days")
@@ -554,7 +554,7 @@ model Wallet {
   id        String   @id @default(cuid())
   userId    String   @unique @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency  Currency @default(TZS)
+  currency  Currency @default(USD)
   createdAt DateTime @default(now()) @map("created_at")
 
   ledgerEntries LedgerEntry[]
@@ -754,8 +754,8 @@ model PlatformSettings {
   maintenanceMode    Boolean  @default(false) @map("maintenance_mode")
   registrationOpen   Boolean  @default(true) @map("registration_open")
   communityOpen      Boolean  @default(true) @map("community_open")
-  minDepositMinor    BigInt   @default(100000) @map("min_deposit_minor")
-  minWithdrawalMinor BigInt   @default(500000) @map("min_withdrawal_minor")
+  minDepositMinor    BigInt   @default(1000) @map("min_deposit_minor") // $10.00
+  minWithdrawalMinor BigInt   @default(2500) @map("min_withdrawal_minor") // $25.00
   /// Admin-published channels users use when depositing (manual / bank / mobile money).
   depositMobileProvider   String? @map("deposit_mobile_provider")
   depositMobileNumber     String? @map("deposit_mobile_number")

@@ -23,7 +23,7 @@ const PURPOSE_TYPES: Record<StoragePresignUploadInput["purpose"], RegExp> = {
   lesson_video: /^video\//i,
   course_thumbnail: /^image\//i,
   certificate: /^(application\/pdf|text\/html)$/i,
-  kyc: /^image\//i,
+  kyc: /^(image\/|application\/pdf$)/i,
 };
 
 @Injectable()

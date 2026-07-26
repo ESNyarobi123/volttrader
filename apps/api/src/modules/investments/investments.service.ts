@@ -267,7 +267,7 @@ export class InvestmentsService {
       }),
     ]);
 
-    const currency = wallet?.currency ?? "TZS";
+    const currency = wallet?.currency ?? "USD";
     let totalInvested = 0n;
     let projected = 0n;
     let activeCount = 0;

@@ -13,7 +13,7 @@ import {
   Smartphone,
   type LucideIcon,
 } from "lucide-react";
-import { CURRENCY_MINOR_UNITS, type Currency } from "@volt/config";
+import { CURRENCY_MINOR_UNITS, type Currency, DEFAULT_CURRENCY} from "@volt/config";
 import type { Money } from "@volt/types";
 import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -139,7 +139,7 @@ export default function AdminSettingsPage() {
     },
   });
 
-  const currency = (data?.runtime.currency ?? "TZS") as Currency;
+  const currency = (data?.runtime.currency ?? DEFAULT_CURRENCY) as Currency;
 
   const onSave = () => {
     if (!form) return;

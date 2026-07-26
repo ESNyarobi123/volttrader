@@ -1,11 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import type { Currency, LedgerEntry } from "@prisma/client";
+import { DEFAULT_CURRENCY } from "@volt/config";
 import type { LedgerEntryView, WalletView } from "@volt/types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { toMoney } from "../../common/money";
-
-const DEFAULT_CURRENCY: Currency = "TZS";
 
 /**
  * Read-side of the wallet. The balance is ALWAYS derived from the append-only
@@ -37,7 +36,7 @@ export class WalletService {
       this.prisma.wallet.findUnique({ where: { userId } }),
       this.ledger.getBalance(userId),
     ]);
-    const currency = wallet?.currency ?? DEFAULT_CURRENCY;
+    const currency = (wallet?.currency ?? DEFAULT_CURRENCY) as Currency;
     return { balance: toMoney(balance, currency), currency };
   }
 

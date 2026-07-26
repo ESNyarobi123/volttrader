@@ -221,7 +221,7 @@ export default function DashboardInvestPage() {
           <div className="rounded-2xl border border-dashed border-border bg-surface p-6 text-center shadow-card">
             <TrendingUp className="mx-auto h-8 w-8 text-volt-dim" />
             <p className="mt-3 font-semibold">No investments yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Start on the Trading Floor.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Start with Account Management.</p>
             <Link
               href="/trading-floor"
               className={cn(

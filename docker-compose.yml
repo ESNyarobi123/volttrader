@@ -50,6 +50,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minio}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minio_dev_password}
+      # Browser uploads (KYC / admin) from web origin → MinIO PUT
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -137,7 +139,7 @@ services:
       FLUTTERWAVE_PUBLIC_KEY: ${FLUTTERWAVE_PUBLIC_KEY:-}
       FLUTTERWAVE_WEBHOOK_HASH: ${FLUTTERWAVE_WEBHOOK_HASH:-}
       FLUTTERWAVE_BASE_URL: ${FLUTTERWAVE_BASE_URL:-https://api.flutterwave.com}
-      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-TZS}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-USD}
       MAIL_FROM: ${MAIL_FROM:-Volt Trades <no-reply@volttrades.local>}
       SMTP_URL: smtp://mailhog:1025
       SITE_URL: ${SITE_URL:-http://localhost:3001}

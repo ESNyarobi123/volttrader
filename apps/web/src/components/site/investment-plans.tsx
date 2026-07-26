@@ -8,10 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+/** Member-facing label — still a projection, never a guarantee (see section disclaimer). */
 const PROJECTION_COPY: Record<InvestmentPlanView["projectionLabel"], string> = {
-  PROJECTED_OUTCOME: "Projected Outcome",
-  TARGET_PERFORMANCE: "Target Performance",
-  HISTORICAL_PERFORMANCE: "Historical Performance",
+  PROJECTED_OUTCOME: "Your projected profit",
+  TARGET_PERFORMANCE: "Your projected profit",
+  HISTORICAL_PERFORMANCE: "Your projected profit",
 };
 
 const RISK_COPY: Record<InvestmentPlanView["riskCategory"], string> = {
@@ -35,14 +36,14 @@ export function InvestmentPlans({
       <div className="container-page">
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white shadow-lift">
-            Trading Floor
+            Account Management
             <ArrowUpRight className="h-3.5 w-3.5 text-volt" aria-hidden />
           </span>
           <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Choose your investment path
+            Choose your Management account plan
           </h2>
           <p className="mt-2 text-sm text-muted-foreground md:text-base">
-            Four clear tiers — entry, duration, and what you gain. Targets are projections, not
+            Four clear tiers — entry, cycle, and what you gain. Projected profits are targets, not
             guarantees.
           </p>
         </div>
@@ -150,7 +151,9 @@ export function InvestmentPlans({
                     >
                       <span className="inline-flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" aria-hidden />
-                        {plan.durationDays} days
+                        {plan.durationDays % 7 === 0
+                          ? `${plan.durationDays / 7} week${plan.durationDays === 7 ? "" : "s"}`
+                          : `${plan.durationDays} days`}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Shield className="h-3.5 w-3.5" aria-hidden />

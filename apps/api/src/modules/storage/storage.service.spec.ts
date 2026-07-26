@@ -27,4 +27,15 @@ describe("StorageService", () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it("rejects non-image non-pdf for kyc", async () => {
+    const storage = new StorageService(config);
+    await expect(
+      storage.presignUpload({
+        purpose: "kyc",
+        filename: "doc.txt",
+        contentType: "text/plain",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

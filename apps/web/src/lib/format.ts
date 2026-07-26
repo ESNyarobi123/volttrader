@@ -1,15 +1,27 @@
 import { CURRENCY_MINOR_UNITS, type Currency } from "@volt/config";
 import type { Money } from "@volt/types";
 
-/** Format a Money value (integer minor units) into a human string, e.g. "TZS 49,000". */
+/** Format a Money value (integer minor units), e.g. "$49" or "$49.50". */
 export function formatMoney(money: Money): string {
-  const minor = CURRENCY_MINOR_UNITS[money.currency as Currency] ?? 100;
+  const currency = (money.currency || "USD") as Currency;
+  const minor = CURRENCY_MINOR_UNITS[currency] ?? 100;
   const major = money.amount / minor;
-  const formatted = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(major);
-  return `${money.currency} ${formatted}`;
+  // Hide trailing .00 for whole dollars; keep cents only when present.
+  const fractionDigits = money.amount % minor === 0 ? 0 : 2;
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    }).format(major);
+  } catch {
+    const formatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    }).format(major);
+    return `${currency} ${formatted}`;
+  }
 }
 
 /** Convert a major-unit user input (e.g. "49000") to integer minor units. */
