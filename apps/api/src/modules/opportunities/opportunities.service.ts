@@ -10,6 +10,7 @@ import type { OpportunityUpsertInput } from "@volt/validation";
 import type { OpportunityDetail, OpportunitySummary } from "@volt/types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { toOpportunitySummary } from "./opportunity.mapper";
 
 @Injectable()
 export class OpportunitiesService {
@@ -18,27 +19,9 @@ export class OpportunitiesService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Shared summary projection. projectionMultiplier is a PROJECTION, never a guarantee. */
-  private toSummary(o: Opportunity): OpportunitySummary {
-    return {
-      id: o.id,
-      slug: o.slug,
-      name: o.name,
-      summary: o.summary,
-      currency: o.currency,
-      minAmount: Number(o.minAmount),
-      maxAmount: o.maxAmount !== null ? Number(o.maxAmount) : null,
-      durationDays: o.durationDays,
-      projectionMultiplier: Number(o.projectionMultiplier),
-      projectionLabel: o.projectionLabel,
-      riskCategory: o.riskCategory,
-      status: o.status,
-    };
-  }
-
   private toDetail(o: Opportunity): OpportunityDetail {
     return {
-      ...this.toSummary(o),
+      ...toOpportunitySummary(o),
       description: o.description,
       riskDisclosure: o.riskDisclosure,
       terms: o.terms,
@@ -53,7 +36,7 @@ export class OpportunitiesService {
       where: { status: "OPEN" },
       orderBy: { createdAt: "desc" },
     });
-    return items.map((o) => this.toSummary(o));
+    return items.map((o) => toOpportunitySummary(o));
   }
 
   /** Public detail (incl. risk disclosure + terms). DRAFT opportunities are never public. */

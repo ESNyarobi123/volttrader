@@ -11,7 +11,7 @@ import {
   PlusCircle,
 } from "lucide-react";
 import type { EnrollmentView } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { humanize, statusVariant } from "@/lib/status";
 import { ProgressRing } from "@/components/dashboard/progress-ring";
 import { Alert } from "@/components/ui/alert";
@@ -19,19 +19,12 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { resolveStorageUrl } from "@/lib/format";
 
 type FilterId = "all" | "active" | "completed";
 
 function isCompleted(e: EnrollmentView) {
   return e.status === "COMPLETED" || e.progressPercent >= 100;
-}
-
-function resolveThumbnailSrc(thumbnailUrl: string | null | undefined): string | null {
-  if (!thumbnailUrl) return null;
-  if (/^https?:\/\//i.test(thumbnailUrl)) return thumbnailUrl;
-  const base = process.env.NEXT_PUBLIC_S3_PUBLIC_URL?.replace(/\/$/, "");
-  if (base) return `${base}/${thumbnailUrl.replace(/^\//, "")}`;
-  return null;
 }
 
 export default function DashboardLearnPage() {
@@ -81,9 +74,7 @@ export default function DashboardLearnPage() {
 
       {enrollmentsQuery.isError ? (
         <Alert variant="danger">
-          {enrollmentsQuery.error instanceof ApiRequestError
-            ? enrollmentsQuery.error.message
-            : "Could not load courses."}
+          {apiErrorMessage(enrollmentsQuery.error, "Could not load courses.")}
         </Alert>
       ) : null}
 
@@ -223,7 +214,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function CourseRow({ enrollment }: { enrollment: EnrollmentView }) {
   const done = isCompleted(enrollment);
-  const thumb = resolveThumbnailSrc(enrollment.course.thumbnailUrl);
+  const thumb = resolveStorageUrl(enrollment.course.thumbnailUrl);
 
   return (
     <Link

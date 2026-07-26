@@ -14,7 +14,7 @@ import {
   Fingerprint,
   type LucideIcon,
 } from "lucide-react";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/dialog";
 import { humanize } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { StatChip } from "@/components/ui/stat-chip";
+import { formatDateTime, formatTimeOfDay, initials } from "@/lib/format";
 
 interface AuditActor {
   id: string;
@@ -88,24 +90,6 @@ const DOMAINS: DomainFilter[] = [
   "project",
 ];
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function dayKey(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
     weekday: "short",
@@ -144,15 +128,6 @@ function actionBadgeVariant(action: string) {
   if (tone === "blue") return "info" as const;
   if (tone === "gold") return "volt" as const;
   return "default" as const;
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 function prettyJson(value: unknown) {
@@ -303,7 +278,7 @@ export default function AdminAuditPage() {
         </div>
       ) : isError ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Could not load audit logs."}
+          {apiErrorMessage(error, "Could not load audit logs.")}
         </Alert>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -361,7 +336,7 @@ export default function AdminAuditPage() {
                             </Badge>
                             <Badge variant="default">{humanize(domainOf(row.action))}</Badge>
                             <span className="text-[11px] text-muted-foreground">
-                              {formatTime(row.createdAt)}
+                              {formatTimeOfDay(row.createdAt)}
                             </span>
                           </div>
                           <p className="font-mono text-sm font-semibold tracking-tight">
@@ -433,7 +408,7 @@ export default function AdminAuditPage() {
                     {detail?.action ?? "Event"}
                   </DialogTitle>
                   <DialogDescription className="mt-1">
-                    {detail ? formatDateTime(detail.createdAt) : ""}
+                    {detail ? formatDateTime(detail.createdAt, { seconds: true }) : ""}
                   </DialogDescription>
                 </div>
               </div>
@@ -508,42 +483,6 @@ export default function AdminAuditPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function StatChip({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  tone: "gold" | "green" | "blue" | "ink" | "amber";
-}) {
-  const tones = {
-    gold: "border-volt/30 from-volt/20",
-    green: "border-success/30 from-success/15",
-    blue: "border-[hsl(var(--accent-blue)/0.3)] from-[hsl(var(--accent-blue)/0.14)]",
-    ink: "border-border from-surface-2",
-    amber: "border-warning/30 from-warning/15",
-  } as const;
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-gradient-to-br via-surface to-surface p-4 shadow-card",
-        tones[tone],
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-volt-dim" />
-      </div>
-      <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
     </div>
   );
 }

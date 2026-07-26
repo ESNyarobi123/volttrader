@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { PageSpinner } from "@/components/ui/spinner";
-import { ApiRequestError, api } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
 import { humanize } from "@/lib/status";
@@ -68,7 +68,7 @@ export default function CourseDetailPage() {
     return (
       <div className="container-page py-10">
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Course not found."}
+          {apiErrorMessage(error, "Course not found.")}
         </Alert>
       </div>
     );
@@ -152,7 +152,7 @@ export default function CourseDetailPage() {
             <CardContent className="space-y-3">
               {mutationError && (
                 <Alert variant="danger">
-                  {mutationError instanceof ApiRequestError ? mutationError.message : "Something went wrong."}
+                  {apiErrorMessage(mutationError, "Something went wrong.")}
                 </Alert>
               )}
 

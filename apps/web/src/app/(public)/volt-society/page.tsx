@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/lib/auth";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 
 const VALUES = [
   {
@@ -115,9 +115,7 @@ export default function VoltSocietyPage() {
             </Button>
             {joinMutation.isError && (
               <p className="text-xs text-danger">
-                {joinMutation.error instanceof ApiRequestError
-                  ? joinMutation.error.message
-                  : "Something went wrong. Please try again."}
+                {apiErrorMessage(joinMutation.error, "Something went wrong. Please try again.")}
               </p>
             )}
           </div>

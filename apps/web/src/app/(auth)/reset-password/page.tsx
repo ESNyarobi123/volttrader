@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Lock } from "lucide-react";
 import { passwordSchema } from "@volt/validation";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,9 +56,7 @@ function ResetPasswordForm() {
       router.replace("/login?reset=1");
     } catch (err) {
       setServerError(
-        err instanceof ApiRequestError
-          ? err.message
-          : "Unable to reset password. Please try again.",
+        apiErrorMessage(err, "Unable to reset password. Please try again."),
       );
     } finally {
       setIsSubmitting(false);

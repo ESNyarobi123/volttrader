@@ -15,7 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ProjectionDisclaimer } from "@/components/shared/compliance-note";
-import { ApiRequestError, api } from "@/lib/api";
+import { ApiRequestError, api, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney, toMinorUnits } from "@/lib/format";
 import { PROJECTION_LABELS, humanize, riskVariant } from "@/lib/status";
@@ -85,7 +85,7 @@ export default function OpportunityDetailPage() {
     return (
       <div className="container-page py-10">
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Opportunity not found."}
+          {apiErrorMessage(error, "Opportunity not found.")}
         </Alert>
       </div>
     );
@@ -193,9 +193,7 @@ export default function OpportunityDetailPage() {
                 <Alert variant="danger">
                   <p>
                     {validationError ??
-                      (investMutation.error instanceof ApiRequestError
-                        ? investMutation.error.message
-                        : "Something went wrong.")}
+                      (apiErrorMessage(investMutation.error, "Something went wrong."))}
                   </p>
                   {kycRequired && (
                     <Link href="/dashboard/profile" className="mt-1 inline-block underline">

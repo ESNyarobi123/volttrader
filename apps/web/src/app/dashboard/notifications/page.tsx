@@ -14,8 +14,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { api, ApiRequestError } from "@/lib/api";
-import { formatDate } from "@/lib/format";
+import { api, apiErrorMessage } from "@/lib/api";
+import { formatDate, formatDayTime } from "@/lib/format";
 import { humanize } from "@/lib/status";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -102,15 +102,6 @@ function dayKey(iso: string): string {
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return "This week";
   return "Earlier";
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function NotificationsPage() {
@@ -264,9 +255,7 @@ export default function NotificationsPage() {
 
       {listQuery.isError ? (
         <Alert variant="danger">
-          {listQuery.error instanceof ApiRequestError
-            ? listQuery.error.message
-            : "Could not load notifications."}
+          {apiErrorMessage(listQuery.error, "Could not load notifications.")}
         </Alert>
       ) : null}
 
@@ -386,7 +375,7 @@ export default function NotificationsPage() {
                                 {item.body}
                               </p>
                               <p className="mt-1.5 text-xs text-muted-foreground">
-                                {formatTime(item.createdAt)}
+                                {formatDayTime(item.createdAt)}
                               </p>
                             </div>
                           </div>
@@ -440,7 +429,7 @@ export default function NotificationsPage() {
                     <dl className="space-y-2 rounded-xl border border-border bg-surface-2/50 p-3 text-xs">
                       <div className="flex justify-between gap-3">
                         <dt className="text-muted-foreground">Received</dt>
-                        <dd className="font-medium">{formatTime(selected.createdAt)}</dd>
+                        <dd className="font-medium">{formatDayTime(selected.createdAt)}</dd>
                       </div>
                       <div className="flex justify-between gap-3">
                         <dt className="text-muted-foreground">Date</dt>
@@ -542,7 +531,7 @@ export default function NotificationsPage() {
               <dl className="space-y-2 rounded-xl border border-border bg-surface-2/50 p-3 text-xs">
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">Received</dt>
-                  <dd className="font-medium">{formatTime(selected.createdAt)}</dd>
+                  <dd className="font-medium">{formatDayTime(selected.createdAt)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">Date</dt>

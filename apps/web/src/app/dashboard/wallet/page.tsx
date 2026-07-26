@@ -31,9 +31,9 @@ import type {
   WalletView,
   WithdrawalView,
 } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { ApiRequestError, api, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { formatMoney, toMinorUnits } from "@/lib/format";
+import { formatDayTime, formatMoney, toMinorUnits } from "@/lib/format";
 import { formatCompact, toMajor } from "@/lib/dashboard-analytics";
 import { humanize, statusVariant } from "@/lib/status";
 import { Alert } from "@/components/ui/alert";
@@ -72,15 +72,6 @@ const withdrawFormSchema = z.object({
 type WithdrawFormValues = z.infer<typeof withdrawFormSchema>;
 
 type TxFilter = "all" | "CREDIT" | "DEBIT";
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function DashboardWalletPage() {
   const { user } = useAuth();
@@ -283,9 +274,7 @@ export default function DashboardWalletPage() {
 
       {walletQuery.isError ? (
         <Alert variant="danger">
-          {walletQuery.error instanceof ApiRequestError
-            ? walletQuery.error.message
-            : "Could not load wallet."}
+          {apiErrorMessage(walletQuery.error, "Could not load wallet.")}
         </Alert>
       ) : null}
 
@@ -476,7 +465,7 @@ export default function DashboardWalletPage() {
                     </Badge>
                     <p className="mt-1 truncate text-sm font-semibold">{formatMoney(w.amount)}</p>
                     <p className="truncate text-[11px] text-muted-foreground">
-                      {humanize(w.method)} · {formatDateTime(w.createdAt)}
+                      {humanize(w.method)} · {formatDayTime(w.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -564,9 +553,7 @@ export default function DashboardWalletPage() {
                 <Skeleton className="h-56 w-full rounded-2xl" />
               ) : depositMethodsQuery.isError || !methods ? (
                 <Alert variant="danger">
-                  {depositMethodsQuery.error instanceof ApiRequestError
-                    ? depositMethodsQuery.error.message
-                    : "Deposit channels unavailable."}
+                  {apiErrorMessage(depositMethodsQuery.error, "Deposit channels unavailable.")}
                 </Alert>
               ) : !methods.manualEnabled && !methods.onlineEnabled ? (
                 <Alert variant="warning">Deposits are temporarily closed.</Alert>
@@ -650,9 +637,7 @@ export default function DashboardWalletPage() {
                       </Button>
                       {onlineDepositMutation.error ? (
                         <Alert variant="danger">
-                          {onlineDepositMutation.error instanceof ApiRequestError
-                            ? onlineDepositMutation.error.message
-                            : "Could not start deposit"}
+                          {apiErrorMessage(onlineDepositMutation.error, "Could not start deposit")}
                         </Alert>
                       ) : null}
                     </form>
@@ -806,9 +791,7 @@ export default function DashboardWalletPage() {
                           </Button>
                           {depositMutation.error ? (
                             <Alert variant="danger">
-                              {depositMutation.error instanceof ApiRequestError
-                                ? depositMutation.error.message
-                                : "Could not submit deposit"}
+                              {apiErrorMessage(depositMutation.error, "Could not submit deposit")}
                             </Alert>
                           ) : null}
                         </form>
@@ -989,9 +972,7 @@ export default function DashboardWalletPage() {
               ) : null}
               {withdrawMutation.error && !kycRequired && !twoFactorRequired ? (
                 <Alert variant="danger">
-                  {withdrawMutation.error instanceof ApiRequestError
-                    ? withdrawMutation.error.message
-                    : "Could not submit withdrawal"}
+                  {apiErrorMessage(withdrawMutation.error, "Could not submit withdrawal")}
                 </Alert>
               ) : null}
             </form>
@@ -1062,7 +1043,7 @@ function TxRow({ entry }: { entry: LedgerEntryView }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">{humanize(entry.type)}</p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {formatDateTime(entry.createdAt)}
+          {formatDayTime(entry.createdAt)}
           {entry.reference ? ` · ${entry.reference}` : ""}
         </p>
       </div>

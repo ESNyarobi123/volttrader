@@ -34,6 +34,7 @@ import { AdminNotifications } from "@/components/admin/admin-notifications";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { humanize } from "@/lib/status";
+import { initials } from "@/lib/format";
 
 const STORAGE_KEY = "volt-admin-sidebar-expanded";
 
@@ -61,16 +62,6 @@ const NAV_GROUPS = ["General", "Catalogue", "Finance", "People", "System"] as co
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
   return pathname.startsWith(href);
-}
-
-function initials(name?: string | null) {
-  if (!name) return "VT";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 export function AdminShell({ children }: { children: ReactNode }) {

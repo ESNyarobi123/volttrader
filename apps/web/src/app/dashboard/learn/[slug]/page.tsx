@@ -13,7 +13,7 @@ import type {
   QuizResultView,
   QuizView,
 } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { formatPercent } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +76,7 @@ export default function CoursePlayerPage() {
       await queryClient.invalidateQueries({ queryKey: ["enrollments", "me"] });
     },
     onError: (err) => {
-      setMutationError(err instanceof ApiRequestError ? err.message : "Could not update progress");
+      setMutationError(apiErrorMessage(err, "Could not update progress"));
     },
   });
 
@@ -99,7 +99,7 @@ export default function CoursePlayerPage() {
       await queryClient.invalidateQueries({ queryKey: ["enrollments", "me"] });
     },
     onError: (err) => {
-      setMutationError(err instanceof ApiRequestError ? err.message : "Could not submit quiz");
+      setMutationError(apiErrorMessage(err, "Could not submit quiz"));
     },
   });
 
@@ -110,9 +110,7 @@ export default function CoursePlayerPage() {
       <Alert variant="danger">
         <AlertTitle>Course unavailable</AlertTitle>
         <p className="text-sm">
-          {courseQuery.error instanceof ApiRequestError
-            ? courseQuery.error.message
-            : "Could not load this course."}
+          {apiErrorMessage(courseQuery.error, "Could not load this course.")}
         </p>
       </Alert>
     );
@@ -302,9 +300,7 @@ export default function CoursePlayerPage() {
               ) : quizQuery.error || !quizQuery.data ? (
                 <Alert variant="danger">
                   <p className="text-sm">
-                    {quizQuery.error instanceof ApiRequestError
-                      ? quizQuery.error.message
-                      : "Quiz unavailable."}
+                    {apiErrorMessage(quizQuery.error, "Quiz unavailable.")}
                   </p>
                 </Alert>
               ) : (

@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import bcrypt from "bcryptjs";
 import type { User, UserRole, UserStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import type {
@@ -14,6 +13,9 @@ import type {
   UpdateProfileInput,
 } from "@volt/validation";
 import type { SessionUser } from "@volt/types";
+import { hashPassword } from "../../common/password";
+import { pickDefined } from "../../common/pick-defined";
+import { toSessionUser } from "../../common/session-user";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { LedgerService } from "../ledger/ledger.service";
@@ -66,20 +68,6 @@ export class UsersService {
     };
   }
 
-  private toSessionUser(user: User): SessionUser {
-    return {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      emailVerified: user.emailVerified,
-      kycStatus: user.kycStatus,
-      twoFactorEnabled: user.twoFactorEnabled,
-      createdAt: user.createdAt.toISOString(),
-    };
-  }
-
   private async assertContactAvailable(
     email: string | null | undefined,
     phone: string | null | undefined,
@@ -101,7 +89,7 @@ export class UsersService {
   async me(userId: string): Promise<SessionUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("User not found");
-    return this.toSessionUser(user);
+    return toSessionUser(user);
   }
 
   async updateMe(userId: string, input: UpdateProfileInput): Promise<SessionUser> {
@@ -116,12 +104,10 @@ export class UsersService {
       const user = await this.prisma.user.update({
         where: { id: userId },
         data: {
-          ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
-          ...(input.country !== undefined ? { country: input.country } : {}),
-          ...(input.phone !== undefined ? { phone: input.phone } : {}),
+          ...pickDefined(input, ["fullName", "country", "phone"]),
         },
       });
-      return this.toSessionUser(user);
+      return toSessionUser(user);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
         throw new NotFoundException("User not found");
@@ -155,8 +141,7 @@ export class UsersService {
   async create(input: AdminCreateUserInput, actorId: string, ip?: string) {
     await this.assertContactAvailable(input.email, input.phone);
 
-    const rounds = Number(this.config.get("BCRYPT_SALT_ROUNDS"));
-    const passwordHash = await bcrypt.hash(input.password, rounds);
+    const passwordHash = await hashPassword(input.password, this.config);
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -218,8 +203,7 @@ export class UsersService {
     if (input.status !== undefined) data.status = input.status;
     if (input.emailVerified !== undefined) data.emailVerified = input.emailVerified;
     if (input.password) {
-      const rounds = Number(this.config.get("BCRYPT_SALT_ROUNDS"));
-      data.passwordHash = await bcrypt.hash(input.password, rounds);
+      data.passwordHash = await hashPassword(input.password, this.config);
     }
 
     const user = await this.prisma.user.update({

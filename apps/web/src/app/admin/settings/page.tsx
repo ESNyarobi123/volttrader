@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { CURRENCY_MINOR_UNITS, type Currency } from "@volt/config";
 import type { Money } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert } from "@/components/ui/alert";
@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate, formatMoney, toMinorUnits } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Field } from "@/components/ui/field";
 
 interface SettingsPayload {
   editable: {
@@ -169,11 +170,7 @@ export default function AdminSettingsPage() {
   };
 
   const saveError =
-    save.error instanceof ApiRequestError
-      ? save.error.message
-      : save.isError
-        ? "Could not save settings."
-        : null;
+    save.isError ? apiErrorMessage(save.error, "Could not save settings.") : null;
 
   const dirty =
     !!data &&
@@ -243,7 +240,7 @@ export default function AdminSettingsPage() {
         </div>
       ) : isError ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Could not load settings."}
+          {apiErrorMessage(error, "Could not load settings.")}
         </Alert>
       ) : (
         <div className="relative grid gap-5 lg:grid-cols-2">
@@ -513,23 +510,6 @@ function Section({
         <div className="space-y-3">{children}</div>
       </CardContent>
     </Card>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
-    </div>
   );
 }
 

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { Money } from "@volt/types";
 import type { Currency } from "@volt/config";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { StatTile, type StatTone } from "@/components/ui/stat-tile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -227,11 +227,7 @@ export default function AdminOverviewPage() {
 
   const loading = statsQuery.isLoading;
   const errorMessage =
-    statsQuery.error instanceof ApiRequestError
-      ? statsQuery.error.message
-      : statsQuery.isError
-        ? "Could not load analytics."
-        : null;
+    statsQuery.isError ? apiErrorMessage(statsQuery.error, "Could not load analytics.") : null;
 
   const kpi: Array<{
     label: string;

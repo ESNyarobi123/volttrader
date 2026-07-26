@@ -18,7 +18,7 @@ import {
 import { SUPPORTED_CURRENCIES, type Currency } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { CoursePlanView } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,9 +36,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatMoney, toMinorUnits } from "@/lib/format";
+import { formatMoney, fromMinorUnits, linesFromText, toMinorUnits } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CURRENCY_MINOR_UNITS } from "@volt/config";
 
 const formSchema = z.object({
   name: z.string().min(2).max(80),
@@ -68,19 +67,6 @@ const emptyDefaults: FormInput = {
   sortOrder: 0,
   published: true,
 };
-
-function featuresFromText(text: string) {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 20);
-}
-
-function fromMinor(amount: number, currency: Currency) {
-  const minor = CURRENCY_MINOR_UNITS[currency] ?? 100;
-  return amount / minor;
-}
 
 export default function AdminCoursePlansPage() {
   const queryClient = useQueryClient();
@@ -114,7 +100,7 @@ export default function AdminCoursePlansPage() {
     form.reset({
       name: plan.name,
       subtitle: plan.subtitle,
-      amountMajor: fromMinor(plan.price.amount, plan.price.currency),
+      amountMajor: fromMinorUnits(plan.price.amount, plan.price.currency),
       currency: plan.price.currency,
       billingPeriod: plan.billingPeriod,
       featuresText: plan.features.join("\n"),
@@ -129,7 +115,7 @@ export default function AdminCoursePlansPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormInput) => {
-      const features = featuresFromText(values.featuresText);
+      const features = linesFromText(values.featuresText);
       if (features.length === 0) throw new Error("Add at least one feature");
       const payload = {
         name: values.name,
@@ -157,7 +143,7 @@ export default function AdminCoursePlansPage() {
       await queryClient.invalidateQueries({ queryKey: ["home", "course-plans"] });
     },
     onError: (err) => {
-      setFormError(err instanceof ApiRequestError ? err.message : "Could not save plan");
+      setFormError(apiErrorMessage(err, "Could not save plan"));
     },
   });
 

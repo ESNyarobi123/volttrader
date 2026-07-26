@@ -16,7 +16,7 @@ import {
   IdCard,
   type LucideIcon,
 } from "lucide-react";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -34,9 +34,10 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { StatChip } from "@/components/ui/stat-chip";
 
 type KycDocType = "NATIONAL_ID" | "PASSPORT" | "DRIVER_LICENSE";
 type KycReviewStatus = "PENDING" | "APPROVED" | "REJECTED" | "NEEDS_MORE_INFO";
@@ -70,17 +71,6 @@ type StatusFilter = "ALL" | KycReviewStatus;
 
 function docLabel(type: KycDocType) {
   return humanize(type);
-}
-
-function formatDateTime(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function decisionBlurb(decision: ReviewDecision) {
@@ -258,7 +248,7 @@ export default function AdminKycPage() {
         </div>
       ) : isError ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Could not load KYC submissions."}
+          {apiErrorMessage(error, "Could not load KYC submissions.")}
         </Alert>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -582,9 +572,7 @@ export default function AdminKycPage() {
 
               {review.isError ? (
                 <Alert variant="danger">
-                  {review.error instanceof ApiRequestError
-                    ? review.error.message
-                    : "Could not submit review."}
+                  {apiErrorMessage(review.error, "Could not submit review.")}
                 </Alert>
               ) : null}
 
@@ -719,42 +707,6 @@ function InfoTile({
       </div>
       <p className={cn("text-sm font-semibold", mono && "font-mono text-xs")}>{value}</p>
       {hint ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
-}
-
-function StatChip({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  tone: "gold" | "green" | "blue" | "ink" | "amber";
-}) {
-  const tones = {
-    gold: "border-volt/30 from-volt/20",
-    green: "border-success/30 from-success/15",
-    blue: "border-[hsl(var(--accent-blue)/0.3)] from-[hsl(var(--accent-blue)/0.14)]",
-    ink: "border-border from-surface-2",
-    amber: "border-warning/30 from-warning/15",
-  } as const;
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-gradient-to-br via-surface to-surface p-4 shadow-card",
-        tones[tone],
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-volt-dim" />
-      </div>
-      <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
     </div>
   );
 }

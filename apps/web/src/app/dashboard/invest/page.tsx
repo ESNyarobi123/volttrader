@@ -11,7 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { InvestmentView, OpportunitySummary, PortfolioSummary } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
 import { humanize, statusVariant } from "@/lib/status";
 import { Alert } from "@/components/ui/alert";
@@ -104,9 +104,7 @@ export default function DashboardInvestPage() {
 
       {investmentsQuery.isError ? (
         <Alert variant="danger">
-          {investmentsQuery.error instanceof ApiRequestError
-            ? investmentsQuery.error.message
-            : "Could not load investments."}
+          {apiErrorMessage(investmentsQuery.error, "Could not load investments.")}
         </Alert>
       ) : null}
 

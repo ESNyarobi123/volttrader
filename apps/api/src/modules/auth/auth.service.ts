@@ -19,6 +19,8 @@ import type {
   TwoFactorDisableInput,
 } from "@volt/validation";
 import type { AuthResponse, SessionUser, TwoFactorSetupView } from "@volt/types";
+import { hashPassword } from "../../common/password";
+import { toSessionUser } from "../../common/session-user";
 import { PrismaService } from "../../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { AuditService } from "../audit/audit.service";
@@ -40,20 +42,6 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly twoFactor: TwoFactorService,
   ) {}
-
-  private toSessionUser(user: User): SessionUser {
-    return {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      emailVerified: user.emailVerified,
-      kycStatus: user.kycStatus,
-      twoFactorEnabled: user.twoFactorEnabled,
-      createdAt: user.createdAt.toISOString(),
-    };
-  }
 
   /** Start TOTP enrollment — returns otpauth URL + secret for the authenticator app. */
   async setupTwoFactor(userId: string): Promise<TwoFactorSetupView> {
@@ -107,7 +95,7 @@ export class AuthService {
       entityId: userId,
     });
 
-    return this.toSessionUser(updated);
+    return toSessionUser(updated);
   }
 
   async disableTwoFactor(userId: string, input: TwoFactorDisableInput): Promise<SessionUser> {
@@ -139,7 +127,7 @@ export class AuthService {
       entityId: userId,
     });
 
-    return this.toSessionUser(updated);
+    return toSessionUser(updated);
   }
 
   /** Used by withdrawals and other high-risk actions. */
@@ -170,10 +158,7 @@ export class AuthService {
     });
     if (existing) throw new ConflictException("An account with these details already exists");
 
-    // Number(): ConfigService may return the raw env string; bcryptjs treats a
-    // string second arg as a pre-made salt (not a cost), which throws.
-    const rounds = Number(this.config.get("BCRYPT_SALT_ROUNDS"));
-    const passwordHash = await bcrypt.hash(input.password, Number.isFinite(rounds) ? rounds : 12);
+    const passwordHash = await hashPassword(input.password, this.config);
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -201,7 +186,7 @@ export class AuthService {
       void this.sendEmailVerification(user).catch(() => undefined);
     }
 
-    return { user: this.toSessionUser(user), tokens };
+    return { user: toSessionUser(user), tokens };
   }
 
   async login(input: LoginInput, meta?: { userAgent?: string; ip?: string }): Promise<AuthResponse> {
@@ -216,7 +201,7 @@ export class AuthService {
 
     const tokens = await this.tokens.issueForUser(user, meta);
     await this.audit.log({ actorId: user.id, action: "auth.login", entityType: "User", entityId: user.id, ip: meta?.ip });
-    return { user: this.toSessionUser(user), tokens };
+    return { user: toSessionUser(user), tokens };
   }
 
   async refresh(refreshToken: string, meta?: { userAgent?: string; ip?: string }) {
@@ -234,7 +219,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException("User no longer exists");
 
     const tokens = await this.tokens.rotate(payload.tokenId, user, meta);
-    return { user: this.toSessionUser(user), tokens };
+    return { user: toSessionUser(user), tokens };
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -249,7 +234,7 @@ export class AuthService {
   async me(userId: string): Promise<SessionUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException("User not found");
-    return this.toSessionUser(user);
+    return toSessionUser(user);
   }
 
   /**
@@ -287,8 +272,7 @@ export class AuthService {
 
   async resetPassword(input: ResetPasswordInput): Promise<{ message: string }> {
     const record = await this.consumeVerificationToken(input.token, "PASSWORD_RESET");
-    const rounds = Number(this.config.get("BCRYPT_SALT_ROUNDS"));
-    const passwordHash = await bcrypt.hash(input.password, Number.isFinite(rounds) ? rounds : 12);
+    const passwordHash = await hashPassword(input.password, this.config);
 
     await this.prisma.user.update({
       where: { id: record.userId },

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -35,9 +35,7 @@ function VerifyEmailContent() {
         if (cancelled) return;
         setStatus("error");
         setMessage(
-          err instanceof ApiRequestError
-            ? err.message
-            : "Unable to verify email. The link may have expired.",
+          apiErrorMessage(err, "Unable to verify email. The link may have expired."),
         );
       }
     })();

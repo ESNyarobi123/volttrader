@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AtSign } from "lucide-react";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@volt/validation";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,9 +40,7 @@ export default function ForgotPasswordPage() {
       setDoneMessage(res.message);
     } catch (err) {
       setServerError(
-        err instanceof ApiRequestError
-          ? err.message
-          : "Unable to send reset instructions. Please try again.",
+        apiErrorMessage(err, "Unable to send reset instructions. Please try again."),
       );
     } finally {
       setIsSubmitting(false);

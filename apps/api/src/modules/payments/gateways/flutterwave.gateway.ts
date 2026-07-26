@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { timingSafeEqual } from "node:crypto";
 import { CURRENCY_MINOR_UNITS, type Currency } from "@volt/config";
 import type {
   CreateIntentParams,
@@ -9,24 +8,7 @@ import type {
   WebhookStatus,
   WebhookVerification,
 } from "./payment-gateway.interface";
-
-const FAILED: WebhookVerification = { ok: false, eventId: "", providerRef: "", status: "FAILED" };
-
-function headerValue(
-  headers: Record<string, string | string[] | undefined>,
-  name: string,
-): string | null {
-  const raw = headers[name] ?? headers[name.toLowerCase()];
-  if (Array.isArray(raw)) return raw[0] ?? null;
-  return raw ?? null;
-}
-
-function secretsMatch(expected: string, provided: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
+import { FAILED_VERIFICATION, headerValue, secretsMatch } from "./webhook.utils";
 
 function mapStatus(value: unknown): WebhookStatus | null {
   const s = String(value ?? "").toLowerCase();
@@ -134,14 +116,14 @@ export class FlutterwaveGateway implements PaymentGateway {
     const expected = this.config.get<string>("FLUTTERWAVE_WEBHOOK_HASH")?.trim() ?? "";
     const provided = headerValue(headers, "verif-hash");
     if (!expected || !provided || !secretsMatch(expected, provided)) {
-      return FAILED;
+      return FAILED_VERIFICATION;
     }
 
     let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(rawBody) as Record<string, unknown>;
     } catch {
-      return FAILED;
+      return FAILED_VERIFICATION;
     }
 
     const data = (parsed.data ?? parsed) as Record<string, unknown>;
@@ -149,7 +131,7 @@ export class FlutterwaveGateway implements PaymentGateway {
     const eventId = data.id ?? data.flw_ref ?? parsed.id ?? txRef;
     const status = mapStatus(data.status);
 
-    if (!txRef || !eventId || !status) return FAILED;
+    if (!txRef || !eventId || !status) return FAILED_VERIFICATION;
 
     return {
       ok: true,

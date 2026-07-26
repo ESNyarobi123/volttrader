@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
-import { ApiRequestError, api } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = ProjectStatus | "ALL";
@@ -112,7 +112,7 @@ export default function ProjectsPage() {
 
         {error ? (
           <Alert variant="danger" className="mt-8">
-            {error instanceof ApiRequestError ? error.message : "Failed to load projects."}
+            {apiErrorMessage(error, "Failed to load projects.")}
           </Alert>
         ) : null}
 

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import type { InvestmentView } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { formatMoney, formatDate } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
 import { Badge } from "@/components/ui/badge";
@@ -42,9 +42,7 @@ export default function InvestmentDetailPage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
         <Alert variant="danger">
-          {query.error instanceof ApiRequestError
-            ? query.error.message
-            : "Investment not found."}
+          {apiErrorMessage(query.error, "Investment not found.")}
         </Alert>
       </div>
     );
