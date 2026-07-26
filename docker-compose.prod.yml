@@ -93,7 +93,10 @@ services:
           sleep 1
         done
         mc mb -p local/$${S3_BUCKET:-volt-trades} || true
-        mc anonymous set download local/$${S3_BUCKET:-volt-trades} || true
+        # Only course thumbnails are public. KYC documents, certificates and
+        # lesson videos are served through short-lived presigned URLs.
+        mc anonymous set none local/$${S3_BUCKET:-volt-trades} || true
+        mc anonymous set download local/$${S3_BUCKET:-volt-trades}/thumbnails || true
         echo "MinIO bucket ready"
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
@@ -146,7 +149,14 @@ services:
       SMTP_URL: ${SMTP_URL:-}
       SITE_URL: ${SITE_URL:-https://mandandaspace.com}
       FEATURE_REAL_MONEY_INVESTMENTS: ${FEATURE_REAL_MONEY_INVESTMENTS:-false}
-      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      # Caddy terminates TLS in front of the API, so X-Forwarded-* is trustworthy here.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      # Demo data must never be seeded into a live database by default.
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-false}
+      SEED_ALLOW_PRODUCTION: ${SEED_ALLOW_PRODUCTION:-false}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
     healthcheck:
       test:
         [

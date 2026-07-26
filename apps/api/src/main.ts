@@ -15,8 +15,19 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
   return Number(this as unknown as bigint);
 };
 
+/** Credential-guessing surfaces — rate limited far below the global budget. */
+const AUTH_RATE_LIMITED_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/2fa/",
+];
+
 async function bootstrap(): Promise<void> {
-  const adapter = new FastifyAdapter({ trustProxy: true });
+  // X-Forwarded-* is only trustworthy behind a proxy that overwrites it; otherwise
+  // any client could spoof its IP and defeat the rate limiter.
+  const adapter = new FastifyAdapter({ trustProxy: process.env.TRUST_PROXY === "true" });
   // Disable Nest's default JSON parser so we can keep raw bytes for webhook HMAC.
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     bufferLogs: false,
@@ -49,13 +60,16 @@ async function bootstrap(): Promise<void> {
       const url = req.url ?? "";
       // Tighter budget for public webhook endpoints.
       if (url.includes("/payments/webhook/")) return 40;
+      // Credential endpoints: keep brute force / enumeration budgets low.
+      if (AUTH_RATE_LIMITED_PATHS.some((p) => url.includes(p))) return 20;
       return 300;
     },
   });
 
   const origins = (process.env.CORS_ORIGINS ?? "http://localhost:3000")
     .split(",")
-    .map((o) => o.trim());
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0 && o !== "*");
   app.enableCors({ origin: origins, credentials: true });
 
   // Validation is done per-route with Zod (ZodValidationPipe) — see @volt/validation.

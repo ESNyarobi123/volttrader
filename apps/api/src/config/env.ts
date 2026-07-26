@@ -16,6 +16,14 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_REFRESH_TTL: z.coerce.number().int().default(1209600),
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(8).max(15).default(12),
+  /**
+   * Only enable behind a reverse proxy that rewrites X-Forwarded-* headers.
+   * When true, clients could otherwise spoof their IP and bypass rate limits.
+   */
+  TRUST_PROXY: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
 
   S3_ENDPOINT: z.string().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),
@@ -55,6 +63,22 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/** Secrets that ship in .env.example / compose defaults — never valid in production. */
+const PLACEHOLDER_PATTERNS = [/change_?me/i, /^dev_/i, /_dev_/i];
+
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return false;
+  return PLACEHOLDER_PATTERNS.some((p) => p.test(value));
+}
+
+/** Env vars that must be explicitly set to a non-placeholder value in production. */
+const PRODUCTION_SECRETS = [
+  "JWT_ACCESS_SECRET",
+  "JWT_REFRESH_SECRET",
+  "PAYMENT_WEBHOOK_SECRET",
+  "S3_SECRET_ACCESS_KEY",
+] as const;
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
@@ -64,6 +88,23 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const data = parsed.data;
   // Hard stop: never allow mock settlement helpers in production.
   if (data.NODE_ENV === "production") {
+    const weak = PRODUCTION_SECRETS.filter((key) => {
+      // Unset vars fall back to a shared, publicly known default — treat as weak.
+      const raw = source[key];
+      return !raw?.trim() || isPlaceholder(raw);
+    });
+    if (weak.length > 0) {
+      throw new Error(
+        `Invalid environment configuration:\n${weak
+          .map((key) => `  - ${key}: set a unique, non-placeholder value in production`)
+          .join("\n")}`,
+      );
+    }
+    if (data.FLUTTERWAVE_SECRET_KEY?.trim() && !data.FLUTTERWAVE_WEBHOOK_HASH?.trim()) {
+      throw new Error(
+        "Invalid environment configuration:\n  - FLUTTERWAVE_WEBHOOK_HASH: required when Flutterwave is enabled (webhooks cannot be verified without it).",
+      );
+    }
     data.ALLOW_MOCK_PAYMENTS = false;
     if (data.PAYMENT_DEFAULT_GATEWAY === "mock") {
       throw new Error(

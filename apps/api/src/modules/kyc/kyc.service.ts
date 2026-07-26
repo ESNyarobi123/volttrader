@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import type { KycStatus, KycSubmission, Prisma } from "@prisma/client";
 import type { KycSubmissionInput } from "@volt/validation";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { StorageService } from "../storage/storage.service";
+
+const DOCUMENT_URL_TTL_SECONDS = 900;
 
 export type AdminKycView = {
   id: string;
@@ -35,18 +37,20 @@ export class KycService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly config: ConfigService,
+    private readonly storage: StorageService,
   ) {}
 
-  private publicUrl(key: string | null | undefined): string | null {
+  /**
+   * Identity documents are never served from a public URL — reviewers get a
+   * short-lived signed link instead.
+   */
+  private async documentUrl(key: string | null | undefined): Promise<string | null> {
     if (!key) return null;
-    const base = (this.config.get<string>("S3_PUBLIC_URL") ?? "").replace(/\/$/, "");
-    if (!base) return null;
     if (key.startsWith("http://") || key.startsWith("https://")) return key;
-    return `${base}/${key.replace(/^\//, "")}`;
+    return this.storage.presignGet(key, DOCUMENT_URL_TTL_SECONDS);
   }
 
-  private toAdminView(
+  private async toAdminView(
     submission: KycSubmission & {
       user?: {
         id: string;
@@ -57,7 +61,12 @@ export class KycService {
         country: string | null;
       } | null;
     },
-  ): AdminKycView {
+  ): Promise<AdminKycView> {
+    const [frontImageUrl, backImageUrl, selfieUrl] = await Promise.all([
+      this.documentUrl(submission.frontImageKey),
+      this.documentUrl(submission.backImageKey),
+      this.documentUrl(submission.selfieKey),
+    ]);
     return {
       id: submission.id,
       documentType: submission.documentType,
@@ -70,9 +79,9 @@ export class KycService {
       frontImageKey: submission.frontImageKey,
       backImageKey: submission.backImageKey ?? null,
       selfieKey: submission.selfieKey ?? null,
-      frontImageUrl: this.publicUrl(submission.frontImageKey),
-      backImageUrl: this.publicUrl(submission.backImageKey),
-      selfieUrl: this.publicUrl(submission.selfieKey),
+      frontImageUrl,
+      backImageUrl,
+      selfieUrl,
       user: submission.user
         ? {
             id: submission.user.id,
@@ -155,7 +164,7 @@ export class KycService {
       }),
       this.prisma.kycSubmission.count({ where }),
     ]);
-    return { items: items.map((i) => this.toAdminView(i)), total };
+    return { items: await Promise.all(items.map((i) => this.toAdminView(i))), total };
   }
 
   async getById(id: string): Promise<AdminKycView> {
