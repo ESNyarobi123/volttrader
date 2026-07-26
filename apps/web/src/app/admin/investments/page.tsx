@@ -23,7 +23,7 @@ import {
   type InvestmentStatus as InvestmentStatusType,
 } from "@volt/config";
 import type { InvestmentView, Money } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -40,9 +40,10 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatMoney, formatDate, toMinorUnits } from "@/lib/format";
+import { formatDate, formatMoney, fromMinorUnits, toMinorUnits } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { StatChip } from "@/components/ui/stat-chip";
 
 type AdminInvestmentView = InvestmentView & {
   user?: { id?: string; fullName: string; email: string | null } | null;
@@ -52,11 +53,6 @@ type StatusFilter = "ALL" | InvestmentStatusType;
 
 function canSettle(status: InvestmentStatusType) {
   return status === "ACTIVE" || status === "MATURED";
-}
-
-function fromMinor(amount: number, currency: Currency) {
-  // All supported currencies use 100 minor units in this codebase.
-  return amount / 100;
 }
 
 function pnlTone(settled: Money | null, principal: Money) {
@@ -118,7 +114,7 @@ export default function AdminInvestmentsPage() {
   const openSettle = (inv: AdminInvestmentView) => {
     setSettleTarget(inv);
     setSettledMajor(
-      String(fromMinor(inv.projectedValue.amount, inv.projectedValue.currency as Currency)),
+      String(fromMinorUnits(inv.projectedValue.amount, inv.projectedValue.currency as Currency)),
     );
     settle.reset();
   };
@@ -210,7 +206,7 @@ export default function AdminInvestmentsPage() {
         </div>
       ) : isError ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Could not load investments."}
+          {apiErrorMessage(error, "Could not load investments.")}
         </Alert>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -434,7 +430,7 @@ export default function AdminInvestmentsPage() {
                     settleTarget &&
                     setSettledMajor(
                       String(
-                        fromMinor(
+                        fromMinorUnits(
                           settleTarget.principal.amount,
                           settleTarget.principal.currency as Currency,
                         ),
@@ -453,7 +449,7 @@ export default function AdminInvestmentsPage() {
                     settleTarget &&
                     setSettledMajor(
                       String(
-                        fromMinor(
+                        fromMinorUnits(
                           settleTarget.projectedValue.amount,
                           settleTarget.projectedValue.currency as Currency,
                         ),
@@ -475,9 +471,7 @@ export default function AdminInvestmentsPage() {
 
               {settle.isError ? (
                 <Alert variant="danger">
-                  {settle.error instanceof ApiRequestError
-                    ? settle.error.message
-                    : "Could not settle investment."}
+                  {apiErrorMessage(settle.error, "Could not settle investment.")}
                 </Alert>
               ) : null}
 
@@ -533,42 +527,6 @@ function MoneyTile({
       </div>
       <p className="mt-0.5 text-sm font-bold tracking-tight">{value}</p>
       {hint ? <p className="text-[10px] text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
-}
-
-function StatChip({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  tone: "gold" | "green" | "blue" | "ink" | "amber";
-}) {
-  const tones = {
-    gold: "border-volt/30 from-volt/20",
-    green: "border-success/30 from-success/15",
-    blue: "border-[hsl(var(--accent-blue)/0.3)] from-[hsl(var(--accent-blue)/0.14)]",
-    ink: "border-border from-surface-2",
-    amber: "border-warning/30 from-warning/15",
-  } as const;
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-gradient-to-br via-surface to-surface p-4 shadow-card",
-        tones[tone],
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-volt-dim" />
-      </div>
-      <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
     </div>
   );
 }

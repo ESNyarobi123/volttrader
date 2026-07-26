@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,19 +27,17 @@ import {
   BadgeDollarSign,
   ToggleLeft,
   CircleDot,
-  type LucideIcon,
-} from "lucide-react";
+  } from "lucide-react";
 import {
   CourseLevel,
   CourseStatus,
-  CURRENCY_MINOR_UNITS,
   SUPPORTED_CURRENCIES,
   type Currency,
   type CourseStatus as CourseStatusType,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { CourseSummary } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { ApiRequestError, api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -47,19 +45,21 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatMoney, toMinorUnits } from "@/lib/format";
+import { ConfirmDeleteDialog } from "@/components/admin/confirm-delete-dialog";
+import { formatMoney, fromMinorUnits, slugify, toMinorUnits } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { StatChip } from "@/components/ui/stat-chip";
+import { Field } from "@/components/ui/field";
+import { FormSection } from "@/components/ui/form-section";
 
 const courseFormSchema = z.object({
   title: z.string().min(3).max(160),
@@ -96,21 +96,6 @@ interface AdminCourseDetail {
 
 type StatusFilter = "ALL" | CourseStatusType;
 type LevelFilter = "ALL" | (typeof CourseLevel)[keyof typeof CourseLevel];
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 160);
-}
-
-function fromMinor(amount: number, currency: Currency) {
-  const minor = CURRENCY_MINOR_UNITS[currency] ?? 100;
-  return amount / minor;
-}
 
 const emptyDefaults: CourseFormInput = {
   title: "",
@@ -192,7 +177,7 @@ export default function AdminCoursesPage() {
         shortDescription: detail.shortDescription,
         description: detail.description,
         learningOutcomesText: detail.learningOutcomes.join("\n"),
-        priceMajor: fromMinor(detail.price.amount, detail.price.currency),
+        priceMajor: fromMinorUnits(detail.price.amount, detail.price.currency),
         currency: detail.price.currency,
         accessType: detail.accessType,
         durationMinutes: detail.durationMinutes,
@@ -205,7 +190,7 @@ export default function AdminCoursesPage() {
         slug: course.slug,
         level: course.level as CourseFormInput["level"],
         shortDescription: course.shortDescription,
-        priceMajor: fromMinor(course.price.amount, course.price.currency as Currency),
+        priceMajor: fromMinorUnits(course.price.amount, course.price.currency as Currency),
         currency: course.price.currency as Currency,
         accessType: course.accessType,
         durationMinutes: course.durationMinutes,
@@ -390,7 +375,7 @@ export default function AdminCoursesPage() {
         </div>
       ) : isError ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Could not load courses."}
+          {apiErrorMessage(error, "Could not load courses.")}
         </Alert>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -767,168 +752,25 @@ export default function AdminCoursesPage() {
       </Dialog>
 
       {/* Delete confirm */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="max-w-md overflow-hidden border-0 bg-transparent p-0 shadow-none" onClose={() => setDeleteTarget(null)}>
-          <div className="overflow-hidden rounded-2xl border border-danger/30 bg-surface shadow-lift">
-            <div className="border-b border-danger/20 bg-gradient-to-br from-danger/15 via-surface to-warning/10 px-6 py-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-danger/15 text-danger">
-                  <Trash2 className="h-5 w-5" />
-                </span>
-                <div>
-                  <DialogTitle>Delete course?</DialogTitle>
-                  <DialogDescription className="mt-1">
-                    This permanently removes <strong>{deleteTarget?.title}</strong> and its lessons.
-                    Courses with enrollments cannot be deleted — archive them instead.
-                  </DialogDescription>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4 p-6">
-              {deleteCourse.isError ? (
-                <Alert variant="danger">
-                  {deleteCourse.error instanceof ApiRequestError
-                    ? deleteCourse.error.message
-                    : "Could not delete course."}
-                </Alert>
-              ) : null}
-              <DialogFooter className="mt-0">
-                <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  disabled={deleteCourse.isPending || !deleteTarget}
-                  onClick={() => deleteTarget && deleteCourse.mutate(deleteTarget.id)}
-                >
-                  {deleteCourse.isPending ? "Deleting…" : "Delete permanently"}
-                </Button>
-              </DialogFooter>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function StatChip({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: typeof BookOpen;
-  label: string;
-  value: number;
-  tone: "gold" | "green" | "blue" | "ink";
-}) {
-  const tones = {
-    gold: "border-volt/30 from-volt/20",
-    green: "border-success/30 from-success/15",
-    blue: "border-[hsl(var(--accent-blue)/0.3)] from-[hsl(var(--accent-blue)/0.14)]",
-    ink: "border-border from-surface-2",
-  } as const;
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-gradient-to-br via-surface to-surface p-4 shadow-card",
-        tones[tone],
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-volt-dim" />
-      </div>
-      <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
-    </div>
-  );
-}
-
-function FormSection({
-  icon: Icon,
-  title,
-  description,
-  tone,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  tone: "gold" | "blue" | "green" | "amber";
-  children: ReactNode;
-}) {
-  const tones = {
-    gold: {
-      shell: "border-volt/25 from-volt/10",
-      bar: "from-volt via-[hsl(349_74%_36%)] to-[hsl(0_0%_10%)]",
-      icon: "bg-volt/20 text-volt-dim",
-    },
-    blue: {
-      shell: "border-[hsl(var(--accent-blue)/0.25)] from-[hsl(var(--accent-blue)/0.1)]",
-      bar: "from-[hsl(0_0%_10%)] via-[hsl(349_74%_36%)] to-[hsl(142_65%_32%)]",
-      icon: "bg-[hsl(var(--accent-blue)/0.15)] text-[hsl(var(--accent-blue))]",
-    },
-    green: {
-      shell: "border-success/25 from-success/10",
-      bar: "from-success via-[hsl(142_65%_29%)] to-volt",
-      icon: "bg-success/15 text-success",
-    },
-    amber: {
-      shell: "border-warning/30 from-warning/10",
-      bar: "from-warning via-volt to-[hsl(30_10%_28%)]",
-      icon: "bg-warning/15 text-[hsl(var(--warning))]",
-    },
-  } as const;
-  const t = tones[tone];
-
-  return (
-    <section
-      className={cn(
-        "relative overflow-hidden rounded-2xl border bg-gradient-to-br via-surface to-surface p-4",
-        t.shell,
-      )}
-    >
-      <div aria-hidden className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", t.bar)} />
-      <div className="mb-4 flex items-start gap-3">
-        <span className={cn("mt-0.5 grid h-9 w-9 place-items-center rounded-xl", t.icon)}>
-          <Icon className="h-4 w-4" />
-        </span>
-        <div>
-          <h3 className="text-sm font-bold tracking-tight">{title}</h3>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  hint,
-  error,
-  className,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  hint?: string;
-  error?: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("space-y-1.5", className)}>
-      <div className="flex items-baseline justify-between gap-2">
-        <Label htmlFor={htmlFor}>{label}</Label>
-        {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
-      </div>
-      {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete course?"
+        description={
+          <>
+            This permanently removes <strong>{deleteTarget?.title}</strong> and its lessons.
+            Courses with enrollments cannot be deleted — archive them instead.
+          </>
+        }
+        error={
+          deleteCourse.isError
+            ? apiErrorMessage(deleteCourse.error, "Could not delete course.")
+            : null
+        }
+        pending={deleteCourse.isPending}
+        disabled={!deleteTarget}
+        onConfirm={() => deleteTarget && deleteCourse.mutate(deleteTarget.id)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,11 +18,10 @@ import {
   Ban,
   MessageSquare,
   User,
-  type LucideIcon,
-} from "lucide-react";
+  } from "lucide-react";
 import { TicketStatus, type TicketStatus as TicketStatusType } from "@volt/config";
 import { supportTicketSchema } from "@volt/validation";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,7 +29,6 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -40,9 +38,12 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatDate } from "@/lib/format";
+import { ConfirmDeleteDialog } from "@/components/admin/confirm-delete-dialog";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { StatChip } from "@/components/ui/stat-chip";
+import { Field } from "@/components/ui/field";
 
 type TicketCategory = "GENERAL" | "PAYMENTS" | "COURSES" | "INVESTMENTS" | "KYC";
 
@@ -86,16 +87,6 @@ const createFormSchema = supportTicketSchema.extend({
   userId: z.string().min(1, "Select a user"),
 });
 type CreateFormInput = z.infer<typeof createFormSchema>;
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function isStaff(role?: string) {
   return role === "SUPPORT_AGENT" || role === "SUPER_ADMIN" || role === "FINANCE_ADMIN";
@@ -218,18 +209,12 @@ export default function AdminSupportPage() {
   };
 
   const createError =
-    createMutation.error instanceof ApiRequestError
-      ? createMutation.error.message
-      : createMutation.isError
-        ? "Could not create ticket."
-        : null;
+    createMutation.isError
+      ? apiErrorMessage(createMutation.error, "Could not create ticket.")
+      : null;
 
   const replyError =
-    sendReply.error instanceof ApiRequestError
-      ? sendReply.error.message
-      : sendReply.isError
-        ? "Could not send reply."
-        : null;
+    sendReply.isError ? apiErrorMessage(sendReply.error, "Could not send reply.") : null;
 
   return (
     <div className="relative space-y-6">
@@ -325,7 +310,7 @@ export default function AdminSupportPage() {
         </div>
       ) : isError ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Could not load tickets."}
+          {apiErrorMessage(error, "Could not load tickets.")}
         </Alert>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -625,106 +610,25 @@ export default function AdminSupportPage() {
       </Dialog>
 
       {/* Delete */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent
-          className="max-w-md overflow-hidden border-0 bg-transparent p-0 shadow-none"
-          onClose={() => setDeleteTarget(null)}
-        >
-          <div className="overflow-hidden rounded-2xl border border-danger/30 bg-surface shadow-lift">
-            <div className="border-b border-danger/20 bg-gradient-to-br from-danger/15 via-surface to-warning/10 px-6 py-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-danger/15 text-danger">
-                  <Trash2 className="h-5 w-5" />
-                </span>
-                <div>
-                  <DialogTitle>Delete ticket?</DialogTitle>
-                  <DialogDescription className="mt-1">
-                    Permanently remove{" "}
-                    <strong>{deleteTarget?.subject ?? "this ticket"}</strong> and all messages.
-                  </DialogDescription>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4 p-6">
-              {deleteMutation.isError ? (
-                <Alert variant="danger">
-                  {deleteMutation.error instanceof ApiRequestError
-                    ? deleteMutation.error.message
-                    : "Could not delete ticket."}
-                </Alert>
-              ) : null}
-              <DialogFooter className="mt-0">
-                <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  disabled={deleteMutation.isPending || !deleteTarget}
-                  onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-                >
-                  {deleteMutation.isPending ? "Deleting…" : "Delete permanently"}
-                </Button>
-              </DialogFooter>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function StatChip({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  tone: "gold" | "green" | "blue" | "ink" | "amber";
-}) {
-  const tones = {
-    gold: "border-volt/30 from-volt/20",
-    green: "border-success/30 from-success/15",
-    blue: "border-[hsl(var(--accent-blue)/0.3)] from-[hsl(var(--accent-blue)/0.14)]",
-    ink: "border-border from-surface-2",
-    amber: "border-warning/30 from-warning/15",
-  } as const;
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-gradient-to-br via-surface to-surface p-4 shadow-card",
-        tones[tone],
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-volt-dim" />
-      </div>
-      <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  error,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete ticket?"
+        description={
+          <>
+            Permanently remove <strong>{deleteTarget?.subject ?? "this ticket"}</strong> and all
+            messages.
+          </>
+        }
+        error={
+          deleteMutation.isError
+            ? apiErrorMessage(deleteMutation.error, "Could not delete ticket.")
+            : null
+        }
+        pending={deleteMutation.isPending}
+        disabled={!deleteTarget}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+      />
     </div>
   );
 }

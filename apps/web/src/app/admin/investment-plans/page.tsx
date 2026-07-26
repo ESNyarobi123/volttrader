@@ -18,7 +18,7 @@ import {
 import { RiskCategory, SUPPORTED_CURRENCIES, type Currency } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import type { InvestmentPlanView } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,9 +36,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatMoney, toMinorUnits } from "@/lib/format";
+import { formatMoney, fromMinorUnits, linesFromText, toMinorUnits } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CURRENCY_MINOR_UNITS } from "@volt/config";
 
 const projectionLabels = [
   "PROJECTED_OUTCOME",
@@ -81,19 +80,6 @@ const emptyDefaults: FormInput = {
   published: true,
 };
 
-function featuresFromText(text: string) {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 20);
-}
-
-function fromMinor(amount: number, currency: Currency) {
-  const minor = CURRENCY_MINOR_UNITS[currency] ?? 100;
-  return amount / minor;
-}
-
 export default function AdminInvestmentPlansPage() {
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -126,7 +112,7 @@ export default function AdminInvestmentPlansPage() {
     form.reset({
       name: plan.name,
       subtitle: plan.subtitle,
-      amountMajor: fromMinor(plan.minAmount.amount, plan.minAmount.currency),
+      amountMajor: fromMinorUnits(plan.minAmount.amount, plan.minAmount.currency),
       currency: plan.minAmount.currency,
       durationDays: plan.durationDays,
       projectionLabel: plan.projectionLabel,
@@ -144,7 +130,7 @@ export default function AdminInvestmentPlansPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormInput) => {
-      const features = featuresFromText(values.featuresText);
+      const features = linesFromText(values.featuresText);
       if (features.length === 0) throw new Error("Add at least one feature");
       const payload = {
         name: values.name,
@@ -175,7 +161,7 @@ export default function AdminInvestmentPlansPage() {
       await queryClient.invalidateQueries({ queryKey: ["home", "investment-plans"] });
     },
     onError: (err) => {
-      setFormError(err instanceof ApiRequestError ? err.message : "Could not save plan");
+      setFormError(apiErrorMessage(err, "Could not save plan"));
     },
   });
 

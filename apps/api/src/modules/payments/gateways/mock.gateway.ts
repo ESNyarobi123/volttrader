@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { timingSafeEqual } from "node:crypto";
 import type {
   CreateIntentParams,
   CreateIntentResult,
@@ -8,8 +7,7 @@ import type {
   WebhookStatus,
   WebhookVerification,
 } from "./payment-gateway.interface";
-
-const FAILED: WebhookVerification = { ok: false, eventId: "", providerRef: "", status: "FAILED" };
+import { FAILED_VERIFICATION, headerValue, secretsMatch } from "./webhook.utils";
 
 function normalizeStatus(value: unknown): WebhookStatus | null {
   const s = String(value ?? "").toUpperCase();
@@ -17,22 +15,6 @@ function normalizeStatus(value: unknown): WebhookStatus | null {
   if (s === "FAILED" || s === "FAILURE" || s === "CANCELLED") return "FAILED";
   if (s === "PENDING") return "PENDING";
   return null;
-}
-
-function headerValue(
-  headers: Record<string, string | string[] | undefined>,
-  name: string,
-): string | null {
-  const raw = headers[name] ?? headers[name.toLowerCase()];
-  if (Array.isArray(raw)) return raw[0] ?? null;
-  return raw ?? null;
-}
-
-function secretsMatch(expected: string, provided: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
 }
 
 /**
@@ -66,22 +48,22 @@ export class MockGateway implements PaymentGateway {
     const provided =
       headerValue(headers, "x-volt-webhook-secret") ?? headerValue(headers, "x-webhook-secret");
     if (!expected || !provided || !secretsMatch(expected, provided)) {
-      return FAILED;
+      return FAILED_VERIFICATION;
     }
 
     let parsed: Record<string, unknown>;
     try {
       parsed = typeof rawBody === "string" ? JSON.parse(rawBody) : (rawBody as Record<string, unknown>);
     } catch {
-      return FAILED;
+      return FAILED_VERIFICATION;
     }
-    if (!parsed || typeof parsed !== "object") return FAILED;
+    if (!parsed || typeof parsed !== "object") return FAILED_VERIFICATION;
 
     const paymentReference = parsed.paymentReference;
     const eventId = parsed.eventId;
     const status = normalizeStatus(parsed.status);
 
-    if (!paymentReference || !eventId || !status) return FAILED;
+    if (!paymentReference || !eventId || !status) return FAILED_VERIFICATION;
 
     return {
       ok: true,

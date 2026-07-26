@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { PageSpinner } from "@/components/ui/spinner";
-import { ApiRequestError, api } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { humanize, statusVariant } from "@/lib/status";
 
 export default function ProjectDetailPage() {
@@ -32,7 +32,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="container-page py-10">
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Project not found."}
+          {apiErrorMessage(error, "Project not found.")}
         </Alert>
       </div>
     );

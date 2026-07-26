@@ -4,17 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { Course, Enrollment } from "@prisma/client";
+import type { Enrollment } from "@prisma/client";
 import type { z } from "zod";
 import { lessonProgressSchema } from "@volt/validation";
-import type { CertificateView, CourseSummary, EnrollmentView } from "@volt/types";
+import type { CertificateView, EnrollmentView } from "@volt/types";
 
 type LessonProgressInput = z.infer<typeof lessonProgressSchema>;
 import { PrismaService } from "../../prisma/prisma.service";
-import { toMoney } from "../../common/money";
+import { toCourseSummary, type CourseWithCount } from "../courses/course.mapper";
 import { CertificatesService } from "./certificates.service";
 
-type CourseWithCount = Course & { _count: { lessons: number } };
 type EnrollmentWithCourse = Enrollment & { course: CourseWithCount };
 
 @Injectable()
@@ -24,29 +23,13 @@ export class EnrollmentsService {
     private readonly certificates: CertificatesService,
   ) {}
 
-  private toCourseSummary(course: CourseWithCount): CourseSummary {
-    return {
-      id: course.id,
-      slug: course.slug,
-      title: course.title,
-      level: course.level,
-      shortDescription: course.shortDescription,
-      price: toMoney(course.priceAmount, course.priceCurrency),
-      accessType: course.accessType,
-      durationMinutes: course.durationMinutes,
-      lessonsCount: course._count.lessons,
-      thumbnailUrl: course.thumbnailKey ?? null,
-      status: course.status,
-    };
-  }
-
   private toView(
     enrollment: EnrollmentWithCourse,
     certificate: CertificateView | null = null,
   ): EnrollmentView {
     return {
       id: enrollment.id,
-      course: this.toCourseSummary(enrollment.course),
+      course: toCourseSummary(enrollment.course),
       status: enrollment.status,
       progressPercent: enrollment.progressPercent,
       startedAt: enrollment.startedAt.toISOString(),

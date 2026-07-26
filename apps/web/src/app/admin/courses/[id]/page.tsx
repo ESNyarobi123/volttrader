@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Upload } from "lucide-react";
 import type { StoragePresignView } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { ApiRequestError, api, apiErrorMessage } from "@/lib/api";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -117,7 +117,7 @@ export default function AdminCourseContentPage() {
       await queryClient.invalidateQueries({ queryKey: ["admin-courses"] });
     },
     onError: (err) => {
-      setError(err instanceof ApiRequestError ? err.message : "Could not add lesson");
+      setError(apiErrorMessage(err, "Could not add lesson"));
     },
   });
 
@@ -175,9 +175,7 @@ export default function AdminCourseContentPage() {
   if (detailQuery.error || !detailQuery.data) {
     return (
       <Alert variant="danger">
-        {detailQuery.error instanceof ApiRequestError
-          ? detailQuery.error.message
-          : "Course not found"}
+        {apiErrorMessage(detailQuery.error, "Course not found")}
       </Alert>
     );
   }

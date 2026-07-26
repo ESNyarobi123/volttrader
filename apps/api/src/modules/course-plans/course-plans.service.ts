@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { CoursePlan, Currency } from "@prisma/client";
 import type { CoursePlanUpdateInput, CoursePlanUpsertInput } from "@volt/validation";
+import { pickDefined } from "../../common/pick-defined";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 
@@ -113,21 +114,23 @@ export class CoursePlansService {
     const plan = await this.prisma.coursePlan.update({
       where: { id },
       data: {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.subtitle !== undefined ? { subtitle: input.subtitle } : {}),
+        ...pickDefined(input, [
+          "name",
+          "subtitle",
+          "billingPeriod",
+          "features",
+          "ctaLabel",
+          "ctaHref",
+          "featured",
+          "sortOrder",
+          "published",
+        ]),
         ...(input.price !== undefined
           ? {
               priceAmount: BigInt(input.price.amount),
               priceCurrency: input.price.currency,
             }
           : {}),
-        ...(input.billingPeriod !== undefined ? { billingPeriod: input.billingPeriod } : {}),
-        ...(input.features !== undefined ? { features: input.features } : {}),
-        ...(input.ctaLabel !== undefined ? { ctaLabel: input.ctaLabel } : {}),
-        ...(input.ctaHref !== undefined ? { ctaHref: input.ctaHref } : {}),
-        ...(input.featured !== undefined ? { featured: input.featured } : {}),
-        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-        ...(input.published !== undefined ? { published: input.published } : {}),
       },
     });
 

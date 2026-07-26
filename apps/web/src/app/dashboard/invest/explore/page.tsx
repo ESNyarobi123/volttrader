@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
-import { ApiRequestError, api } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export default function DashboardExploreFloorPage() {
@@ -82,7 +82,7 @@ export default function DashboardExploreFloorPage() {
 
       {error ? (
         <Alert variant="danger">
-          {error instanceof ApiRequestError ? error.message : "Failed to load opportunities."}
+          {apiErrorMessage(error, "Failed to load opportunities.")}
         </Alert>
       ) : null}
 

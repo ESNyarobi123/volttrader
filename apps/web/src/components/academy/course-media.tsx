@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Play } from "lucide-react";
 import type { CourseLevel } from "@volt/config";
 import { cn } from "@/lib/utils";
+import { resolveStorageUrl } from "@/lib/format";
 
 const LEVEL_WASH: Record<CourseLevel, string> = {
   BEGINNER: "from-volt/40 via-[hsl(350_73%_44%/0.18)] to-[hsl(0_0%_10%/0.22)]",
@@ -30,14 +31,6 @@ function formatDuration(minutes: number) {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
-function resolveThumbnailSrc(thumbnailUrl: string | null | undefined): string | null {
-  if (!thumbnailUrl) return null;
-  if (/^https?:\/\//i.test(thumbnailUrl)) return thumbnailUrl;
-  const base = process.env.NEXT_PUBLIC_S3_PUBLIC_URL?.replace(/\/$/, "");
-  if (base) return `${base}/${thumbnailUrl.replace(/^\//, "")}`;
-  return null;
-}
-
 /** Cinema-style 16:9 frame with play affordance — uses API thumbnail when available. */
 export function CourseVideoFrame({
   level,
@@ -54,7 +47,7 @@ export function CourseVideoFrame({
   index?: number;
   className?: string;
 }) {
-  const src = resolveThumbnailSrc(thumbnailUrl);
+  const src = resolveStorageUrl(thumbnailUrl);
   const [imgFailed, setImgFailed] = useState(false);
   const showImage = Boolean(src) && !imgFailed;
 

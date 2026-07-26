@@ -9,16 +9,12 @@ import { ConfigService } from "@nestjs/config";
 import { randomUUID } from "node:crypto";
 import type { Investment, Opportunity, Payment } from "@prisma/client";
 import type { CreateInvestmentInput } from "@volt/validation";
-import type {
-  InvestmentView,
-  OpportunitySummary,
-  PaymentView,
-  PortfolioSummary,
-} from "@volt/types";
+import type { InvestmentView, PaymentView, PortfolioSummary } from "@volt/types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { AuditService } from "../audit/audit.service";
 import { GatewayRegistry } from "../payments/gateways/gateway.registry";
+import { toOpportunitySummary } from "../opportunities/opportunity.mapper";
 import { applyMultiplier, toMoney } from "../../common/money";
 
 type InvestmentWithOpportunity = Investment & { opportunity: Opportunity };
@@ -35,27 +31,10 @@ export class InvestmentsService {
     private readonly config: ConfigService,
   ) {}
 
-  private toOpportunitySummary(o: Opportunity): OpportunitySummary {
-    return {
-      id: o.id,
-      slug: o.slug,
-      name: o.name,
-      summary: o.summary,
-      currency: o.currency,
-      minAmount: Number(o.minAmount),
-      maxAmount: o.maxAmount !== null ? Number(o.maxAmount) : null,
-      durationDays: o.durationDays,
-      projectionMultiplier: Number(o.projectionMultiplier),
-      projectionLabel: o.projectionLabel,
-      riskCategory: o.riskCategory,
-      status: o.status,
-    };
-  }
-
   private toView(inv: InvestmentWithOpportunity): InvestmentView {
     return {
       id: inv.id,
-      opportunity: this.toOpportunitySummary(inv.opportunity),
+      opportunity: toOpportunitySummary(inv.opportunity),
       principal: toMoney(inv.principalAmount, inv.currency),
       projectedValue: toMoney(inv.projectedValue, inv.currency),
       status: inv.status,

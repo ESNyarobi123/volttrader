@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Currency, InvestmentPlan, ProjectionLabel, RiskCategory } from "@prisma/client";
 import type { InvestmentPlanUpdateInput, InvestmentPlanUpsertInput } from "@volt/validation";
+import { pickDefined } from "../../common/pick-defined";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 
@@ -122,28 +123,26 @@ export class InvestmentPlansService {
     const plan = await this.prisma.investmentPlan.update({
       where: { id },
       data: {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.subtitle !== undefined ? { subtitle: input.subtitle } : {}),
+        ...pickDefined(input, [
+          "name",
+          "subtitle",
+          "durationDays",
+          "projectionLabel",
+          "projectionHighlight",
+          "riskCategory",
+          "features",
+          "ctaLabel",
+          "ctaHref",
+          "featured",
+          "sortOrder",
+          "published",
+        ]),
         ...(input.minAmount !== undefined
           ? {
               minAmount: BigInt(input.minAmount.amount),
               currency: input.minAmount.currency,
             }
           : {}),
-        ...(input.durationDays !== undefined ? { durationDays: input.durationDays } : {}),
-        ...(input.projectionLabel !== undefined
-          ? { projectionLabel: input.projectionLabel }
-          : {}),
-        ...(input.projectionHighlight !== undefined
-          ? { projectionHighlight: input.projectionHighlight }
-          : {}),
-        ...(input.riskCategory !== undefined ? { riskCategory: input.riskCategory } : {}),
-        ...(input.features !== undefined ? { features: input.features } : {}),
-        ...(input.ctaLabel !== undefined ? { ctaLabel: input.ctaLabel } : {}),
-        ...(input.ctaHref !== undefined ? { ctaHref: input.ctaHref } : {}),
-        ...(input.featured !== undefined ? { featured: input.featured } : {}),
-        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-        ...(input.published !== undefined ? { published: input.published } : {}),
       },
     });
 

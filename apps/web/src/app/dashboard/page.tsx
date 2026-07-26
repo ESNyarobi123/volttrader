@@ -18,7 +18,7 @@ import type {
 } from "@volt/types";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, initials, resolveStorageUrl } from "@/lib/format";
 import { humanize, statusVariant } from "@/lib/status";
 import { SoftNotice } from "@/components/shared/soft-notice";
 import { ProgressRing } from "@/components/dashboard/progress-ring";
@@ -30,24 +30,6 @@ import { cn } from "@/lib/utils";
 function firstName(name?: string | null) {
   if (!name) return "there";
   return name.split(" ")[0] ?? "there";
-}
-
-function initials(name?: string | null) {
-  if (!name) return "VT";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-function resolveThumbnailSrc(thumbnailUrl: string | null | undefined): string | null {
-  if (!thumbnailUrl) return null;
-  if (/^https?:\/\//i.test(thumbnailUrl)) return thumbnailUrl;
-  const base = process.env.NEXT_PUBLIC_S3_PUBLIC_URL?.replace(/\/$/, "");
-  if (base) return `${base}/${thumbnailUrl.replace(/^\//, "")}`;
-  return null;
 }
 
 export default function DashboardOverviewPage() {
@@ -195,10 +177,10 @@ export default function DashboardOverviewPage() {
                   className="group flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-card transition hover:border-volt/35 hover:shadow-lift sm:p-4"
                 >
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-volt/10 sm:h-[4.5rem] sm:w-[4.5rem]">
-                    {resolveThumbnailSrc(e.course.thumbnailUrl) ? (
+                    {resolveStorageUrl(e.course.thumbnailUrl) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={resolveThumbnailSrc(e.course.thumbnailUrl)!}
+                        src={resolveStorageUrl(e.course.thumbnailUrl)!}
                         alt=""
                         className="h-full w-full object-cover"
                       />

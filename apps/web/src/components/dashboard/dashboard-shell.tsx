@@ -23,6 +23,7 @@ import { DropdownPortal } from "@/components/shared/dropdown-portal";
 import { LordIconScript } from "@/components/shared/lord-icon";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { initials } from "@/lib/format";
 
 /** Horizontal hub nav — LMS-inspired, Volt product modules only. */
 const NAV: { href: string; label: string; icon: LucideIcon }[] = [
@@ -36,16 +37,6 @@ const NAV: { href: string; label: string; icon: LucideIcon }[] = [
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   return pathname.startsWith(href);
-}
-
-function initials(name?: string | null) {
-  if (!name) return "VT";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 export function DashboardShell({ children }: { children: ReactNode }) {

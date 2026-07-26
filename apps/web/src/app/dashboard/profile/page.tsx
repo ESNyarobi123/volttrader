@@ -30,9 +30,9 @@ import {
   type SupportTicketInput,
 } from "@volt/validation";
 import type { SessionUser, TwoFactorSetupView } from "@volt/types";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { formatDate } from "@/lib/format";
+import { formatDate, initials } from "@/lib/format";
 import { statusVariant, humanize } from "@/lib/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert } from "@/components/ui/alert";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { Field } from "@/components/ui/field";
 
 const kycFormSchema = kycSubmissionSchema.extend({
   backImageKey: z.string().max(200).optional(),
@@ -89,12 +89,6 @@ type TabId = (typeof TABS)[number]["id"];
 
 function isTabId(value: string | null): value is TabId {
   return TABS.some((t) => t.id === value);
-}
-
-function initials(name: string | undefined | null) {
-  if (!name?.trim()) return "VT";
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "VT";
 }
 
 export default function DashboardProfilePage() {
@@ -168,7 +162,7 @@ export default function DashboardProfilePage() {
     },
     onError: (err) => {
       setVerifyMessage(
-        err instanceof ApiRequestError ? err.message : "Could not resend verification email.",
+        apiErrorMessage(err, "Could not resend verification email."),
       );
     },
   });
@@ -227,7 +221,7 @@ export default function DashboardProfilePage() {
     },
     onError: (err) => {
       setCommunityError(
-        err instanceof ApiRequestError ? err.message : "Could not join Volt Society",
+        apiErrorMessage(err, "Could not join Volt Society"),
       );
     },
   });
@@ -240,7 +234,7 @@ export default function DashboardProfilePage() {
       setSecurityFlash("Scan or enter this secret in your authenticator app, then confirm below.");
     },
     onError: (err) => {
-      setSecurityError(err instanceof ApiRequestError ? err.message : "Could not start 2FA setup");
+      setSecurityError(apiErrorMessage(err, "Could not start 2FA setup"));
     },
   });
 
@@ -254,7 +248,7 @@ export default function DashboardProfilePage() {
       await refresh();
     },
     onError: (err) => {
-      setSecurityError(err instanceof ApiRequestError ? err.message : "Invalid code");
+      setSecurityError(apiErrorMessage(err, "Invalid code"));
     },
   });
 
@@ -272,7 +266,7 @@ export default function DashboardProfilePage() {
       await refresh();
     },
     onError: (err) => {
-      setSecurityError(err instanceof ApiRequestError ? err.message : "Could not disable 2FA");
+      setSecurityError(apiErrorMessage(err, "Could not disable 2FA"));
     },
   });
 
@@ -472,9 +466,7 @@ export default function DashboardProfilePage() {
                 </div>
                 {updateProfile.error ? (
                   <Alert variant="danger" className="sm:col-span-2">
-                    {updateProfile.error instanceof ApiRequestError
-                      ? updateProfile.error.message
-                      : "Could not save"}
+                    {apiErrorMessage(updateProfile.error, "Could not save")}
                   </Alert>
                 ) : null}
               </form>
@@ -739,9 +731,7 @@ export default function DashboardProfilePage() {
                   </div>
                   {submitKyc.error ? (
                     <Alert variant="danger">
-                      {submitKyc.error instanceof ApiRequestError
-                        ? submitKyc.error.message
-                        : "Could not submit"}
+                      {apiErrorMessage(submitKyc.error, "Could not submit")}
                     </Alert>
                   ) : null}
                 </form>
@@ -835,9 +825,7 @@ export default function DashboardProfilePage() {
                 </div>
                 {submitTicket.error ? (
                   <Alert variant="danger">
-                    {submitTicket.error instanceof ApiRequestError
-                      ? submitTicket.error.message
-                      : "Could not send message"}
+                    {apiErrorMessage(submitTicket.error, "Could not send message")}
                   </Alert>
                 ) : null}
               </form>
@@ -960,28 +948,6 @@ function Panel({
         {children}
       </div>
     </section>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  error,
-  children,
-  className,
-}: {
-  label: string;
-  htmlFor: string;
-  error?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("space-y-1.5", className)}>
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
-    </div>
   );
 }
 

@@ -11,7 +11,7 @@ import {
   Shield,
   Users,
 } from "lucide-react";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { humanize, statusVariant } from "@/lib/status";
 import { Alert } from "@/components/ui/alert";
@@ -68,7 +68,7 @@ export default function DashboardSocietyPage() {
     },
     onError: (err) => {
       setJoinError(
-        err instanceof ApiRequestError ? err.message : "Could not join Volt Society",
+        apiErrorMessage(err, "Could not join Volt Society"),
       );
     },
   });
@@ -99,9 +99,7 @@ export default function DashboardSocietyPage() {
 
       {membershipQuery.isError ? (
         <Alert variant="danger">
-          {membershipQuery.error instanceof ApiRequestError
-            ? membershipQuery.error.message
-            : "Could not load membership."}
+          {apiErrorMessage(membershipQuery.error, "Could not load membership.")}
         </Alert>
       ) : null}
 

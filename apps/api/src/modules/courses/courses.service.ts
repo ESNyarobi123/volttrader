@@ -17,8 +17,7 @@ import { AuditService } from "../audit/audit.service";
 import { StorageService } from "../storage/storage.service";
 import { CertificatesService } from "../enrollments/certificates.service";
 import { toMoney } from "../../common/money";
-
-type CourseWithCount = Course & { _count: { lessons: number } };
+import { toCourseSummary } from "./course.mapper";
 
 export interface CreateCategoryInput {
   name: string;
@@ -34,22 +33,6 @@ export class CoursesService {
     private readonly certificates: CertificatesService,
   ) {}
 
-  private toSummary(course: CourseWithCount): CourseSummary {
-    return {
-      id: course.id,
-      slug: course.slug,
-      title: course.title,
-      level: course.level,
-      shortDescription: course.shortDescription,
-      price: toMoney(course.priceAmount, course.priceCurrency),
-      accessType: course.accessType,
-      durationMinutes: course.durationMinutes,
-      lessonsCount: course._count.lessons,
-      thumbnailUrl: course.thumbnailKey ?? null,
-      status: course.status,
-    };
-  }
-
   /** Public catalogue — published courses only, optionally filtered by level. */
   async listPublished(level?: CourseLevel): Promise<CourseSummary[]> {
     const courses = await this.prisma.course.findMany({
@@ -57,7 +40,7 @@ export class CoursesService {
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { lessons: true } } },
     });
-    return courses.map((c) => this.toSummary(c));
+    return courses.map((c) => toCourseSummary(c));
   }
 
   /**
@@ -108,7 +91,7 @@ export class CoursesService {
     });
 
     return {
-      ...this.toSummary(course),
+      ...toCourseSummary(course),
       description: course.description,
       learningOutcomes: course.learningOutcomes,
       lessons,
@@ -152,7 +135,7 @@ export class CoursesService {
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { lessons: true } } },
     });
-    return courses.map((c) => this.toSummary(c));
+    return courses.map((c) => toCourseSummary(c));
   }
 
   async createCourse(input: CourseUpsertInput, actorId: string): Promise<CourseSummary> {
@@ -185,7 +168,7 @@ export class CoursesService {
       metadata: { slug: course.slug },
     });
 
-    return this.toSummary(course);
+    return toCourseSummary(course);
   }
 
   async updateCourse(
@@ -232,7 +215,7 @@ export class CoursesService {
       metadata: { fields: Object.keys(data) },
     });
 
-    return this.toSummary(course);
+    return toCourseSummary(course);
   }
 
   async addLesson(courseId: string, input: LessonUpsertInput, actorId: string) {

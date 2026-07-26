@@ -38,6 +38,11 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** Server-provided message for a failed request, or `fallback` for anything else. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiRequestError ? err.message : fallback;
+}
+
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   token?: string; // explicit token (server components)
