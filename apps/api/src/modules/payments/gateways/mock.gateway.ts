@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { timingSafeEqual } from "node:crypto";
 import type {
@@ -8,6 +8,7 @@ import type {
   WebhookStatus,
   WebhookVerification,
 } from "./payment-gateway.interface";
+import { errorMessage } from "../../../common/errors";
 
 const FAILED: WebhookVerification = { ok: false, eventId: "", providerRef: "", status: "FAILED" };
 
@@ -43,6 +44,7 @@ function secretsMatch(expected: string, provided: string): boolean {
 @Injectable()
 export class MockGateway implements PaymentGateway {
   readonly id = "mock";
+  private readonly logger = new Logger(MockGateway.name);
 
   constructor(private readonly config: ConfigService) {}
 
@@ -65,23 +67,38 @@ export class MockGateway implements PaymentGateway {
     const expected = this.config.get<string>("PAYMENT_WEBHOOK_SECRET") ?? "";
     const provided =
       headerValue(headers, "x-volt-webhook-secret") ?? headerValue(headers, "x-webhook-secret");
-    if (!expected || !provided || !secretsMatch(expected, provided)) {
+    if (!expected) {
+      this.logger.error("Rejected mock webhook: PAYMENT_WEBHOOK_SECRET is not configured");
+      return FAILED;
+    }
+    if (!provided || !secretsMatch(expected, provided)) {
+      this.logger.warn("Rejected mock webhook: missing or mismatched webhook secret header");
       return FAILED;
     }
 
     let parsed: Record<string, unknown>;
     try {
       parsed = typeof rawBody === "string" ? JSON.parse(rawBody) : (rawBody as Record<string, unknown>);
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Rejected mock webhook: body is not valid JSON (${errorMessage(err)})`);
       return FAILED;
     }
-    if (!parsed || typeof parsed !== "object") return FAILED;
+    if (!parsed || typeof parsed !== "object") {
+      this.logger.warn("Rejected mock webhook: body is not a JSON object");
+      return FAILED;
+    }
 
     const paymentReference = parsed.paymentReference;
     const eventId = parsed.eventId;
     const status = normalizeStatus(parsed.status);
 
-    if (!paymentReference || !eventId || !status) return FAILED;
+    if (!paymentReference || !eventId || !status) {
+      this.logger.warn(
+        `Rejected mock webhook: unusable payload (paymentReference=${String(paymentReference)}, ` +
+          `eventId=${String(eventId)}, status=${String(parsed.status)})`,
+      );
+      return FAILED;
+    }
 
     return {
       ok: true,

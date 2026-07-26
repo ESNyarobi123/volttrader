@@ -24,6 +24,7 @@ import {
   type MembershipStatus as MembershipStatusType,
 } from "@volt/config";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -206,7 +207,8 @@ export default function AdminCommunityPage() {
     try {
       const full = await api.get<CommunityMemberView>(`/community/${id}`);
       setDetail(full);
-    } catch {
+    } catch (err) {
+      reportRecoveredError("Could not load the full member profile", err);
       setDetail(members.find((m) => m.id === id) ?? null);
     }
   };

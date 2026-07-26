@@ -32,6 +32,7 @@ import type {
   WithdrawalView,
 } from "@volt/types";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { useAuth } from "@/lib/auth";
 import { formatMoney, toMinorUnits } from "@/lib/format";
 import { formatCompact, toMajor } from "@/lib/dashboard-analytics";
@@ -159,8 +160,9 @@ export default function DashboardWalletPage() {
       await navigator.clipboard.writeText(value);
       setCopied(key);
       window.setTimeout(() => setCopied(null), 1600);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      // Silence here left users believing they had copied deposit details.
+      reportRecoveredError("Could not copy to the clipboard", err);
     }
   };
 

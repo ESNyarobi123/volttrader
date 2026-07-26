@@ -25,6 +25,7 @@ import { LedgerService } from "../ledger/ledger.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { toMoney } from "../../common/money";
+import { errorMessage, errorStack } from "../../common/errors";
 import { GatewayRegistry } from "./gateways/gateway.registry";
 
 type Tx = Prisma.TransactionClient;
@@ -339,10 +340,7 @@ export class PaymentsService {
 
       return this.toView(updated);
     } catch (err) {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "FAILED" },
-      });
+      await this.markFailed(payment.id, err);
       throw err;
     }
   }
@@ -449,14 +447,21 @@ export class PaymentsService {
         courseId: course.id,
       },
     });
-    const intent = await gateway.createIntent({
-      userId,
-      amount,
-      currency,
-      reference,
-      type: "COURSE_PURCHASE",
-      metadata: { courseId: course.id },
-    });
+    let intent;
+    try {
+      intent = await gateway.createIntent({
+        userId,
+        amount,
+        currency,
+        reference,
+        type: "COURSE_PURCHASE",
+        metadata: { courseId: course.id },
+      });
+    } catch (err) {
+      // Without this the row would sit at INITIATED forever with no trace of why.
+      await this.markFailed(payment.id, err);
+      throw err;
+    }
     const updated = await this.prisma.payment.update({
       where: { id: payment.id },
       data: { providerRef: intent.providerRef, checkoutUrl: intent.checkoutUrl, status: "PENDING" },
@@ -532,6 +537,7 @@ export class PaymentsService {
     const gateway = this.gateways.resolve(gatewayId);
     const verification = gateway.verifyWebhook(rawBody, headers);
     if (!verification.ok) {
+      this.logger.warn(`Rejected ${gateway.id} webhook: verification failed`);
       throw new BadRequestException("Webhook verification failed");
     }
 
@@ -574,15 +580,23 @@ export class PaymentsService {
       throw e;
     }
 
-    // Best-effort side effects AFTER the money is committed.
+    // Best-effort side effects AFTER the money is committed: the settlement is
+    // durable, so a failure here is logged instead of telling the provider to retry.
     if (verification.status === "PAID") {
-      await this.audit.log({
-        actorId: payment.userId,
-        action: "payment.confirmed",
-        entityType: "Payment",
-        entityId: payment.id,
-        metadata: { gateway: gateway.id, eventId: verification.eventId, type: payment.type },
-      });
+      try {
+        await this.audit.log({
+          actorId: payment.userId,
+          action: "payment.confirmed",
+          entityType: "Payment",
+          entityId: payment.id,
+          metadata: { gateway: gateway.id, eventId: verification.eventId, type: payment.type },
+        });
+      } catch (err) {
+        this.logger.error(
+          `Payment ${payment.id} settled but audit logging failed: ${errorMessage(err)}`,
+          errorStack(err),
+        );
+      }
       await this.notify(
         payment.userId,
         "PAYMENT",
@@ -861,6 +875,19 @@ export class PaymentsService {
     if (coupon.expiresAt && coupon.expiresAt < new Date()) return false;
     if (coupon.maxRedemptions !== null && coupon.redemptions >= coupon.maxRedemptions) return false;
     return true;
+  }
+
+  /** Mark an intent FAILED without losing the gateway error that caused it. */
+  private async markFailed(paymentId: string, cause: unknown): Promise<void> {
+    this.logger.warn(`Payment ${paymentId} failed to start: ${errorMessage(cause)}`);
+    try {
+      await this.prisma.payment.update({ where: { id: paymentId }, data: { status: "FAILED" } });
+    } catch (err) {
+      this.logger.error(
+        `Could not mark payment ${paymentId} as FAILED: ${errorMessage(err)}`,
+        errorStack(err),
+      );
+    }
   }
 
   private async notify(userId: string, type: Parameters<NotificationsService["create"]>[0]["type"], title: string, body: string): Promise<void> {

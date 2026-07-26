@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InvestmentStatus, KycStatus, PaymentStatus, type Currency } from "@prisma/client";
 import * as net from "node:net";
@@ -7,6 +7,7 @@ import type { PlatformSettingsUpdateInput } from "@volt/validation";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { toMoney } from "../../common/money";
+import { errorMessage } from "../../common/errors";
 
 /** Length of the dashboard activity timeseries (inclusive of today). */
 const TIMESERIES_DAYS = 14;
@@ -51,6 +52,8 @@ export interface AdminAlert {
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -749,7 +752,8 @@ export class AdminService {
         latencyMs: Date.now() - started,
         detail: "Primary relational store",
       };
-    } catch {
+    } catch (err) {
+      this.logger.warn(`System probe: PostgreSQL is down (${errorMessage(err)})`);
       return {
         id: "database",
         name: "PostgreSQL",
@@ -769,8 +773,10 @@ export class AdminService {
       const parsed = new URL(url);
       host = parsed.hostname || host;
       port = Number(parsed.port || 6379);
-    } catch {
-      // keep defaults
+    } catch (err) {
+      this.logger.warn(
+        `REDIS_URL ("${url}") is not a valid URL (${errorMessage(err)}); probing ${host}:${port}`,
+      );
     }
     const tcp = await this.probeTcp(host, port);
     return {
@@ -790,8 +796,8 @@ export class AdminService {
         const parsed = new URL(smtp);
         const host = parsed.hostname || "localhost";
         return `http://${host}:8025`;
-      } catch {
-        // fall through
+      } catch (err) {
+        this.logger.warn(`SMTP_URL ("${smtp}") is not a valid URL (${errorMessage(err)})`);
       }
     }
     return "http://localhost:8025";
@@ -817,7 +823,8 @@ export class AdminService {
         latencyMs: Date.now() - started,
         detail: input.detail,
       };
-    } catch {
+    } catch (err) {
+      this.logger.warn(`System probe: ${input.name} is down (${errorMessage(err)})`);
       return {
         id: input.id,
         name: input.name,

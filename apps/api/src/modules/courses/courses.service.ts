@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
@@ -17,6 +18,7 @@ import { AuditService } from "../audit/audit.service";
 import { StorageService } from "../storage/storage.service";
 import { CertificatesService } from "../enrollments/certificates.service";
 import { toMoney } from "../../common/money";
+import { errorMessage } from "../../common/errors";
 
 type CourseWithCount = Course & { _count: { lessons: number } };
 
@@ -27,6 +29,8 @@ export interface CreateCategoryInput {
 
 @Injectable()
 export class CoursesService {
+  private readonly logger = new Logger(CoursesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -87,7 +91,16 @@ export class CoursesService {
           where: { userId_courseId: { userId, courseId: course.id } },
         });
         if (cert) {
-          certificate = await this.certificates.getDownload(userId, cert.id).catch(() => null);
+          // The course page still renders without a download URL, but a storage
+          // failure behind it has to be traceable.
+          certificate = await this.certificates
+            .getDownload(userId, cert.id)
+            .catch((err: unknown) => {
+              this.logger.error(
+                `Could not build download for certificate ${cert.id}: ${errorMessage(err)}`,
+              );
+              return null;
+            });
         }
       }
     }

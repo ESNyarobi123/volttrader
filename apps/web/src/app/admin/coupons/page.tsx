@@ -30,6 +30,7 @@ import {
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -287,8 +288,8 @@ export default function AdminCouponsPage() {
       await navigator.clipboard.writeText(coupon.code);
       setCopiedId(coupon.id);
       setTimeout(() => setCopiedId(null), 1600);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportRecoveredError("Could not copy the coupon code", err);
     }
   };
 

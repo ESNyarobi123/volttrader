@@ -23,6 +23,7 @@ import {
 import { TicketStatus, type TicketStatus as TicketStatusType } from "@volt/config";
 import { supportTicketSchema } from "@volt/validation";
 import { api, ApiRequestError } from "@/lib/api";
+import { reportRecoveredError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -203,7 +204,8 @@ export default function AdminSupportPage() {
       const full = await api.get<AdminTicket>(`/support/tickets/${id}`);
       setDetail(full);
       setReply("");
-    } catch {
+    } catch (err) {
+      reportRecoveredError("Could not load the full ticket", err);
       setDetail(tickets.find((t) => t.id === id) ?? null);
     }
   };
