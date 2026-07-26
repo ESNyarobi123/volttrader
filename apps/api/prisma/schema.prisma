@@ -111,6 +111,7 @@ enum LedgerDirection {
 enum LedgerEntryType {
   DEPOSIT
   COURSE_PURCHASE
+  COURSE_PLAN_PURCHASE
   INVESTMENT_FUNDING
   INVESTMENT_SETTLEMENT
   WITHDRAWAL
@@ -121,10 +122,17 @@ enum LedgerEntryType {
 
 enum PaymentType {
   COURSE_PURCHASE
+  COURSE_PLAN_PURCHASE
   WALLET_DEPOSIT
   INVESTMENT_FUNDING
   WITHDRAWAL
   SHOP_PURCHASE
+}
+
+enum PlanSubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
 }
 
 enum PaymentStatus {
@@ -216,19 +224,21 @@ model User {
   refreshTokens      RefreshToken[]
   verificationTokens VerificationToken[]
   kycSubmissions     KycSubmission[]
-  enrollments        Enrollment[]
-  lessonProgress     LessonProgress[]
-  quizResults        QuizResult[]
-  certificates       Certificate[]
-  investments        Investment[]
-  payments           Payment[]
-  withdrawals        Withdrawal[]
-  ledgerEntries      LedgerEntry[]
-  notifications      Notification[]
-  supportTickets     SupportTicket[]
-  ticketMessages     TicketMessage[]
-  communityMember    CommunityMember?
-  auditLogs          AuditLog[]        @relation("ActorAuditLogs")
+  enrollments                 Enrollment[]
+  lessonProgress              LessonProgress[]
+  quizResults                 QuizResult[]
+  certificates                Certificate[]
+  investments                 Investment[]
+  payments                    Payment[]
+  withdrawals                 Withdrawal[]
+  ledgerEntries               LedgerEntry[]
+  notifications               Notification[]
+  supportTickets              SupportTicket[]
+  ticketMessages              TicketMessage[]
+  communityMember             CommunityMember?
+  coursePlanSubscriptions     CoursePlanSubscription[]
+  investmentPlanSubscriptions InvestmentPlanSubscription[]
+  auditLogs                   AuditLog[]        @relation("ActorAuditLogs")
 
   @@index([role])
   @@index([kycStatus])
@@ -331,6 +341,9 @@ model Course {
   status           CourseStatus @default(DRAFT)
   categoryId       String?      @map("category_id")
   category         Category?    @relation(fields: [categoryId], references: [id])
+  /// Which Forex course plan can unlock this course (and higher tiers).
+  coursePlanId     String?      @map("course_plan_id")
+  coursePlan       CoursePlan?  @relation(fields: [coursePlanId], references: [id], onDelete: SetNull)
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
@@ -341,10 +354,11 @@ model Course {
 
   @@index([status])
   @@index([level])
+  @@index([coursePlanId])
   @@map("courses")
 }
 
-/// Landing-page Forex course pricing tiers (admin-managed, public fetch).
+/// Forex Academy plan tiers (public pricing + entitlement gate).
 model CoursePlan {
   id            String   @id @default(cuid())
   name          String
@@ -362,12 +376,33 @@ model CoursePlan {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  courses       Course[]
+  subscriptions CoursePlanSubscription[]
+
   @@index([published, sortOrder])
   @@map("course_plans")
 }
 
-/// Landing-page investment pricing tiers (admin-managed, public fetch).
-/// Marketing cards only — real invest flow stays on Opportunity.
+/// User's active Forex plan membership (one ACTIVE row is the current tier).
+model CoursePlanSubscription {
+  id           String                 @id @default(cuid())
+  userId       String                 @map("user_id")
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coursePlanId String                 @map("course_plan_id")
+  coursePlan   CoursePlan             @relation(fields: [coursePlanId], references: [id], onDelete: Restrict)
+  status       PlanSubscriptionStatus @default(ACTIVE)
+  paymentId    String?                @map("payment_id")
+  startsAt     DateTime               @default(now()) @map("starts_at")
+  endsAt       DateTime?              @map("ends_at")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([coursePlanId])
+  @@map("course_plan_subscriptions")
+}
+
+/// Management-account plan tiers (public pricing + opportunity gate).
 model InvestmentPlan {
   id                   String          @id @default(cuid())
   name                 String
@@ -389,8 +424,29 @@ model InvestmentPlan {
   createdAt            DateTime        @default(now()) @map("created_at")
   updatedAt            DateTime        @updatedAt @map("updated_at")
 
+  opportunities Opportunity[]
+  subscriptions InvestmentPlanSubscription[]
+
   @@index([published, sortOrder])
   @@map("investment_plans")
+}
+
+/// User's selected management plan (Spark free; higher tiers selected after review).
+model InvestmentPlanSubscription {
+  id               String                 @id @default(cuid())
+  userId           String                 @map("user_id")
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investmentPlanId String                 @map("investment_plan_id")
+  investmentPlan   InvestmentPlan         @relation(fields: [investmentPlanId], references: [id], onDelete: Restrict)
+  status           PlanSubscriptionStatus @default(ACTIVE)
+  startsAt         DateTime               @default(now()) @map("starts_at")
+  endsAt           DateTime?              @map("ends_at")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([investmentPlanId])
+  @@map("investment_plan_subscriptions")
 }
 
 model Lesson {
@@ -512,12 +568,16 @@ model Opportunity {
   status               OpportunityStatus @default(DRAFT)
   startDate            DateTime?         @map("start_date")
   endDate              DateTime?         @map("end_date")
+  /// Which management plan tier can access this opportunity (and higher tiers).
+  investmentPlanId     String?           @map("investment_plan_id")
+  investmentPlan       InvestmentPlan?   @relation(fields: [investmentPlanId], references: [id], onDelete: SetNull)
   createdAt            DateTime          @default(now()) @map("created_at")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
   investments Investment[]
 
   @@index([status])
+  @@index([investmentPlanId])
   @@map("opportunities")
 }
 
@@ -604,6 +664,7 @@ model Payment {
   idempotencyKey String?       @unique @map("idempotency_key")
   // Loose links to what the payment funds (set once verified).
   courseId       String?       @map("course_id")
+  coursePlanId   String?       @map("course_plan_id")
   opportunityId  String?       @map("opportunity_id")
   metadata       Json?
   paidAt         DateTime?     @map("paid_at")

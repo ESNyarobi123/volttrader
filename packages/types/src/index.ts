@@ -115,6 +115,7 @@ export interface CourseSummary {
   lessonsCount: number;
   thumbnailUrl: string | null;
   status: CourseStatus;
+  coursePlanId?: string | null;
 }
 
 export interface CourseDetail extends CourseSummary {
@@ -266,6 +267,7 @@ export interface OpportunitySummary {
   projectionLabel: "PROJECTED_OUTCOME" | "TARGET_PERFORMANCE" | "HISTORICAL_PERFORMANCE";
   riskCategory: RiskCategory;
   status: OpportunityStatus;
+  investmentPlanId?: string | null;
 }
 
 export interface OpportunityDetail extends OpportunitySummary {
@@ -274,6 +276,26 @@ export interface OpportunityDetail extends OpportunitySummary {
   terms: string;
   startDate: string | null;
   endDate: string | null;
+}
+
+export interface CoursePlanMembershipView {
+  plan: CoursePlanView | null;
+  plans: CoursePlanView[];
+  courses: Array<CourseSummary & { locked: boolean; enrolled: boolean }>;
+}
+
+/** Published management plan with its investable opportunity (1:1 for members). */
+export interface InvestmentPlanCatalogItem extends InvestmentPlanView {
+  opportunityId: string | null;
+  opportunitySlug: string | null;
+}
+
+/**
+ * Member invest catalog: each plan is a package you can fund.
+ * Users may hold multiple concurrent investments across plans.
+ */
+export interface InvestmentPlanMembershipView {
+  plans: InvestmentPlanCatalogItem[];
 }
 
 export interface InvestmentView {

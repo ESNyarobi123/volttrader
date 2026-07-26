@@ -77,6 +77,7 @@ export class OpportunitiesService {
         terms: input.terms,
         startDate: input.startDate ?? null,
         endDate: input.endDate ?? null,
+        investmentPlanId: input.investmentPlanId ?? null,
       },
     });
 
@@ -120,6 +121,7 @@ export class OpportunitiesService {
     if (input.terms !== undefined) data.terms = input.terms;
     if (input.startDate !== undefined) data.startDate = input.startDate;
     if (input.endDate !== undefined) data.endDate = input.endDate;
+    if (input.investmentPlanId !== undefined) data.investmentPlanId = input.investmentPlanId;
     if (input.status !== undefined) data.status = input.status;
 
     const opportunity = await this.prisma.opportunity.update({ where: { id }, data });

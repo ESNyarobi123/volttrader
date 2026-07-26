@@ -19,5 +19,6 @@ export function toOpportunitySummary(o: Opportunity): OpportunitySummary {
     projectionLabel: o.projectionLabel,
     riskCategory: o.riskCategory,
     status: o.status,
+    investmentPlanId: o.investmentPlanId ?? null,
   };
 }

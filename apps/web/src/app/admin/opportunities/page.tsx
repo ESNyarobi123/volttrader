@@ -56,6 +56,7 @@ import { statusVariant, riskVariant, humanize, PROJECTION_LABELS } from "@/lib/s
 import { StatChip } from "@/components/ui/stat-chip";
 import { Field } from "@/components/ui/field";
 import { FormSection } from "@/components/ui/form-section";
+import type { InvestmentPlanView } from "@volt/types";
 
 const opportunityFormSchema = z.object({
   name: z.string().min(3).max(160),
@@ -75,6 +76,7 @@ const opportunityFormSchema = z.object({
   riskCategory: z.nativeEnum(RiskCategory),
   riskDisclosure: z.string().min(20, "A risk disclosure is required"),
   terms: z.string().min(20, "Terms are required"),
+  investmentPlanId: z.string().min(1, "Select a management plan"),
   status: z.nativeEnum(OpportunityStatus).optional(),
 });
 type OpportunityFormInput = z.infer<typeof opportunityFormSchema>;
@@ -98,6 +100,7 @@ const emptyDefaults: OpportunityFormInput = {
     "Capital is at risk. Projected outcomes are illustrative targets only and are never guaranteed. Past performance does not predict future results.",
   terms:
     "By investing you acknowledge the risk disclosure, accept that projections are not guarantees, and agree to Volt Trades terms of use.",
+  investmentPlanId: "",
   status: OpportunityStatus.DRAFT,
 };
 
@@ -115,6 +118,12 @@ export default function AdminOpportunitiesPage() {
     queryKey: ["admin-opportunities"],
     queryFn: () => api.get<OpportunityDetail[]>("/opportunities/admin/all"),
   });
+
+  const plansQuery = useQuery({
+    queryKey: ["admin-investment-plans"],
+    queryFn: () => api.get<InvestmentPlanView[]>("/investment-plans/admin/all"),
+  });
+  const plans = plansQuery.data ?? [];
 
   const {
     register,
@@ -170,6 +179,7 @@ export default function AdminOpportunitiesPage() {
       riskCategory: item.riskCategory,
       riskDisclosure: item.riskDisclosure,
       terms: item.terms,
+      investmentPlanId: item.investmentPlanId ?? "",
       status: item.status,
     });
     setEditorOpen(true);
@@ -228,6 +238,7 @@ export default function AdminOpportunitiesPage() {
       riskCategory: values.riskCategory,
       riskDisclosure: values.riskDisclosure,
       terms: values.terms,
+      investmentPlanId: values.investmentPlanId || null,
       ...(editingId && values.status ? { status: values.status } : {}),
     };
   };
@@ -610,6 +621,21 @@ export default function AdminOpportunitiesPage() {
                       <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input id="durationDays" className="pl-9" type="number" min={1} {...register("durationDays")} />
                     </div>
+                  </Field>
+                  <Field
+                    label="Management plan"
+                    htmlFor="investmentPlanId"
+                    error={errors.investmentPlanId?.message}
+                    hint="Members on this plan (and higher) can invest"
+                  >
+                    <Select id="investmentPlanId" {...register("investmentPlanId")}>
+                      <option value="">Select plan…</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                   <Field label="Minimum amount" htmlFor="minAmountMajor" error={errors.minAmountMajor?.message}>
                     <Input id="minAmountMajor" type="number" step="0.01" min={0} {...register("minAmountMajor")} />

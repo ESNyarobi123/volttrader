@@ -99,6 +99,7 @@ export type LedgerDirection = (typeof LedgerDirection)[keyof typeof LedgerDirect
 export const LedgerEntryType = {
   DEPOSIT: "DEPOSIT",
   COURSE_PURCHASE: "COURSE_PURCHASE",
+  COURSE_PLAN_PURCHASE: "COURSE_PLAN_PURCHASE",
   INVESTMENT_FUNDING: "INVESTMENT_FUNDING",
   INVESTMENT_SETTLEMENT: "INVESTMENT_SETTLEMENT",
   WITHDRAWAL: "WITHDRAWAL",
@@ -110,6 +111,7 @@ export type LedgerEntryType = (typeof LedgerEntryType)[keyof typeof LedgerEntryT
 
 export const PaymentType = {
   COURSE_PURCHASE: "COURSE_PURCHASE",
+  COURSE_PLAN_PURCHASE: "COURSE_PLAN_PURCHASE",
   WALLET_DEPOSIT: "WALLET_DEPOSIT",
   INVESTMENT_FUNDING: "INVESTMENT_FUNDING",
   WITHDRAWAL: "WITHDRAWAL",

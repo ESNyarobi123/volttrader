@@ -25,6 +25,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { SupportModule } from "./modules/support/support.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { LandingModule } from "./modules/landing/landing.module";
+import { PlanAccessModule } from "./modules/plan-access/plan-access.module";
 import { StorageModule } from "./modules/storage/storage.module";
 
 @Module({
@@ -41,6 +42,7 @@ import { StorageModule } from "./modules/storage/storage.module";
     PrismaModule,
     MailModule,
     StorageModule,
+    PlanAccessModule,
     LedgerModule,
     AuditModule,
     AuthModule,

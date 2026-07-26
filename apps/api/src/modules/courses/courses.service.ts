@@ -16,6 +16,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { StorageService } from "../storage/storage.service";
 import { CertificatesService } from "../enrollments/certificates.service";
+import { PlanAccessService } from "../plan-access/plan-access.service";
 import { toMoney } from "../../common/money";
 import { toCourseSummary } from "./course.mapper";
 
@@ -31,6 +32,7 @@ export class CoursesService {
     private readonly audit: AuditService,
     private readonly storage: StorageService,
     private readonly certificates: CertificatesService,
+    private readonly planAccess: PlanAccessService,
   ) {}
 
   /** Public catalogue — published courses only, optionally filtered by level. */
@@ -59,12 +61,20 @@ export class CoursesService {
     if (!course) throw new NotFoundException("Course not found");
 
     let enrolled = false;
+    let hasPlanAccess = false;
     let certificate = null;
     if (userId) {
       const enrollment = await this.prisma.enrollment.findUnique({
         where: { userId_courseId: { userId, courseId: course.id } },
       });
       enrolled = !!enrollment && enrollment.status !== "REVOKED";
+      hasPlanAccess = await this.planAccess.canAccessCourse(userId, course);
+      if (hasPlanAccess && !enrolled) {
+        await this.prisma.enrollment.create({
+          data: { userId, courseId: course.id },
+        });
+        enrolled = true;
+      }
       if (enrolled) {
         const cert = await this.prisma.certificate.findUnique({
           where: { userId_courseId: { userId, courseId: course.id } },
@@ -75,9 +85,8 @@ export class CoursesService {
       }
     }
 
-    const isPaid = course.accessType === "PAID";
     const lessons: LessonSummary[] = course.lessons.map((lesson) => {
-      const locked = isPaid && !lesson.isPreview && !enrolled;
+      const locked = !lesson.isPreview && !enrolled && !hasPlanAccess;
       return {
         id: lesson.id,
         title: lesson.title,
@@ -156,6 +165,7 @@ export class CoursesService {
         durationMinutes: input.durationMinutes,
         thumbnailKey: input.thumbnailKey ?? null,
         categoryId: input.categoryId ?? null,
+        coursePlanId: input.coursePlanId ?? null,
       },
       include: { _count: { select: { lessons: true } } },
     });
@@ -199,6 +209,7 @@ export class CoursesService {
     if (input.durationMinutes !== undefined) data.durationMinutes = input.durationMinutes;
     if (input.thumbnailKey !== undefined) data.thumbnailKey = input.thumbnailKey;
     if (input.categoryId !== undefined) data.categoryId = input.categoryId;
+    if (input.coursePlanId !== undefined) data.coursePlanId = input.coursePlanId;
     if (input.status !== undefined) data.status = input.status;
 
     const course = await this.prisma.course.update({
@@ -305,6 +316,7 @@ export class CoursesService {
       durationMinutes: course.durationMinutes,
       thumbnailUrl: course.thumbnailKey ?? null,
       status: course.status,
+      coursePlanId: course.coursePlanId,
       category: course.category,
       lessons: course.lessons.map((lesson) => ({
         id: lesson.id,

@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 import { Role } from "@volt/config";
 import {
+  coursePlanSubscribeSchema,
   coursePlanUpdateSchema,
   coursePlanUpsertSchema,
+  type CoursePlanSubscribeInput,
   type CoursePlanUpdateInput,
   type CoursePlanUpsertInput,
 } from "@volt/validation";
@@ -21,6 +24,23 @@ export class CoursePlansController {
   @Public()
   listPublic() {
     return this.plans.listPublished();
+  }
+
+  /** Authenticated Learn dashboard payload. */
+  @Get("me")
+  @Auth()
+  membership(@CurrentUser("id") userId: string) {
+    return this.plans.membershipFor(userId);
+  }
+
+  @Post("subscribe")
+  @Auth()
+  subscribe(
+    @Body(new ZodValidationPipe(coursePlanSubscribeSchema)) dto: CoursePlanSubscribeInput,
+    @CurrentUser("id") userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    return this.plans.subscribe(userId, dto, req.ip);
   }
 
   @Get("admin/all")

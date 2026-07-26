@@ -845,9 +845,10 @@ async function main() {
         "1-week management cycle",
         "Entry from $500",
         "Risk disclosure before you invest",
-        "Portfolio status tracking",
+        "Track earnings until maturity",
       ],
       ctaLabel: "Invest Now",
+      multiplier: "2",
     },
     {
       name: "Momentum",
@@ -863,10 +864,11 @@ async function main() {
         "Projected profit up to 3×",
         "2-week management cycle",
         "Entry from $1,000",
-        "Curated opportunity access",
+        "Hold alongside other plans",
         "Dashboard performance view",
       ],
       ctaLabel: "Invest Now",
+      multiplier: "3",
     },
     {
       name: "Velocity",
@@ -882,10 +884,11 @@ async function main() {
         "Projected profit up to 4×",
         "30-day management cycle",
         "Entry from $2,500",
-        "Higher capacity slots",
+        "Hold alongside other plans",
         "Terms & risk acceptance flow",
       ],
       ctaLabel: "Invest Now",
+      multiplier: "4",
     },
     {
       name: "Summit",
@@ -901,10 +904,11 @@ async function main() {
         "Projected profit up to 5×",
         "60-day management cycle",
         "Entry from $5,000",
-        "Premium opportunity tiers",
+        "Hold alongside other plans",
         "Full portfolio analytics",
       ],
       ctaLabel: "Invest Now",
+      multiplier: "5",
     },
   ];
   for (const plan of investmentPlansSeed) {
@@ -919,7 +923,7 @@ async function main() {
       riskCategory: plan.riskCategory,
       features: plan.features,
       ctaLabel: plan.ctaLabel,
-      ctaHref: "/register",
+      ctaHref: "/register?redirect=/dashboard/invest",
       featured: plan.featured,
       sortOrder: plan.sortOrder,
       published: true,
@@ -930,6 +934,77 @@ async function main() {
       await prisma.investmentPlan.create({ data: { name: plan.name, ...data } });
     }
   }
+
+  // --- Attach courses / opportunities to plan tiers ---
+  const coursePlanByName = Object.fromEntries(
+    (await prisma.coursePlan.findMany()).map((p) => [p.name, p.id]),
+  );
+  const investmentPlanByName = Object.fromEntries(
+    (await prisma.investmentPlan.findMany()).map((p) => [p.name, p.id]),
+  );
+
+  const coursePlanMap: Record<string, string> = {
+    "forex-foundation": "Starter",
+    "risk-and-psychology": "Starter",
+    "technical-analysis": "Essential",
+    "price-action-essentials": "Essential",
+    "market-sessions-liquidity": "Essential",
+    "professional-trading-strategy": "Pro",
+    "trade-journal-discipline": "Pro",
+    "multi-timeframe-analysis": "Pro",
+    "complete-forex-mastery": "Mastery",
+    "capital-allocation-basics": "Mastery",
+  };
+  for (const [slug, planName] of Object.entries(coursePlanMap)) {
+    const planId = coursePlanByName[planName];
+    if (!planId) continue;
+    await prisma.course.updateMany({
+      where: { slug },
+      data: {
+        coursePlanId: planId,
+        accessType: planName === "Starter" ? "FREE" : "PAID",
+      },
+    });
+  }
+
+  // One OPEN opportunity per management plan (= the investable package on landing/dashboard).
+  for (const plan of investmentPlansSeed) {
+    const planId = investmentPlanByName[plan.name];
+    if (!planId) continue;
+    const slug = `plan-${plan.name.toLowerCase()}`;
+    const riskDisclosure =
+      "Capital is at risk. Projected outcomes are targets only and are not guaranteed. Past or modelled performance does not predict future results.";
+    const terms =
+      "By investing you accept the risk disclosure, platform terms, and that returns (if any) are settled after the management cycle ends.";
+    const existing = await prisma.opportunity.findUnique({ where: { slug } });
+    const data = {
+      name: plan.name,
+      summary: plan.subtitle,
+      description: `${plan.name} management plan — ${plan.subtitle}. Cycle: ${plan.durationDays} days. Target highlight: ${plan.projectionHighlight}.`,
+      currency: "USD" as const,
+      minAmount: plan.minAmount,
+      maxAmount: null as bigint | null,
+      durationDays: plan.durationDays,
+      projectionMultiplier: plan.multiplier,
+      projectionLabel: plan.projectionLabel,
+      riskCategory: plan.riskCategory,
+      riskDisclosure,
+      terms,
+      status: "OPEN" as const,
+      investmentPlanId: planId,
+    };
+    if (existing) {
+      await prisma.opportunity.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.opportunity.create({ data: { slug, ...data } });
+    }
+  }
+
+  // Hide legacy multi-opportunity demo rows from the member invest catalog.
+  await prisma.opportunity.updateMany({
+    where: { slug: { not: { startsWith: "plan-" } }, status: "OPEN" },
+    data: { status: "CLOSED" },
+  });
 
   // --- Coupons ---
   const coupons = [
@@ -1164,23 +1239,29 @@ async function main() {
     }
   }
 
-  // Investments (wallet-funded ACTIVE) + a few PENDING payment-funded
-  const starter = opportunities.find((o) => o.slug === "starter-allocation")!;
-  const growth = opportunities.find((o) => o.slug === "growth-managed-account")!;
-  const balanced = opportunities.find((o) => o.slug === "balanced-floor")!;
+  // Investments (wallet-funded ACTIVE) against management plan packages
+  const planOpps = await prisma.opportunity.findMany({
+    where: { slug: { in: ["plan-spark", "plan-momentum", "plan-velocity"] }, status: "OPEN" },
+    orderBy: { minAmount: "asc" },
+  });
+  const sparkOpp = planOpps.find((o) => o.slug === "plan-spark");
+  const momentumOpp = planOpps.find((o) => o.slug === "plan-momentum");
+  const velocityOpp = planOpps.find((o) => o.slug === "plan-velocity");
 
   for (const [i, u] of createdUsers.entries()) {
     if (i >= 7) continue;
-    const opp = i % 3 === 0 ? growth : i % 3 === 1 ? starter : balanced;
+    const opp = i % 3 === 0 ? velocityOpp : i % 3 === 1 ? sparkOpp : momentumOpp;
+    if (!opp) continue;
+    // Demo wallets are small — fund at plan minimum only.
     const principal = opp.minAmount;
-    const multiplier = Number(opp.multiplier);
+    const multiplier = Number(opp.projectionMultiplier);
     const projected = BigInt(Math.round(Number(principal) * multiplier));
     const ref = `SEED-INV-${u.key}`;
     const existing = await prisma.investment.findUnique({ where: { reference: ref } });
     if (existing) continue;
 
     const maturesAt = new Date();
-    maturesAt.setDate(maturesAt.getDate() + 60 + i);
+    maturesAt.setDate(maturesAt.getDate() + opp.durationDays + i);
 
     const investment = await prisma.investment.create({
       data: {
@@ -1188,7 +1269,7 @@ async function main() {
         opportunityId: opp.id,
         principalAmount: principal,
         currency: "USD",
-        multiplierSnapshot: opp.multiplier,
+        multiplierSnapshot: opp.projectionMultiplier,
         projectedValue: projected,
         status: i === 0 ? "MATURED" : "ACTIVE",
         reference: ref,
@@ -1213,15 +1294,15 @@ async function main() {
     const u = createdUsers[8];
     const ref = `SEED-INV-PENDING-${u.key}`;
     const existing = await prisma.investment.findUnique({ where: { reference: ref } });
-    if (!existing) {
-      const principal = starter.minAmount;
+    if (!existing && sparkOpp) {
+      const principal = sparkOpp.minAmount;
       const investment = await prisma.investment.create({
         data: {
           userId: u.id,
-          opportunityId: starter.id,
+          opportunityId: sparkOpp.id,
           principalAmount: principal,
           currency: "USD",
-          multiplierSnapshot: starter.multiplier,
+          multiplierSnapshot: sparkOpp.projectionMultiplier,
           projectedValue: principal * 2n,
           status: "PENDING",
           reference: ref,
@@ -1233,7 +1314,7 @@ async function main() {
         type: "INVESTMENT_FUNDING",
         status: "INITIATED",
         amount: principal,
-        opportunityId: starter.id,
+        opportunityId: sparkOpp.id,
       });
       await prisma.investment.update({
         where: { id: investment.id },
@@ -1484,11 +1565,11 @@ async function main() {
 
     // Staggered deposits → rich 14-day cashflow
     const deposits: Array<{ ref: string; major: number; daysAgo: number }> = [
-      { ref: "SEED-MSUME-DEP-01", major: 500, daysAgo: 13 },
-      { ref: "SEED-MSUME-DEP-02", major: 250, daysAgo: 10 },
-      { ref: "SEED-MSUME-DEP-03", major: 180, daysAgo: 7 },
-      { ref: "SEED-MSUME-DEP-04", major: 320, daysAgo: 4 },
-      { ref: "SEED-MSUME-DEP-05", major: 120, daysAgo: 1 },
+      { ref: "SEED-MSUME-DEP-01", major: 2500, daysAgo: 13 },
+      { ref: "SEED-MSUME-DEP-02", major: 2000, daysAgo: 10 },
+      { ref: "SEED-MSUME-DEP-03", major: 1500, daysAgo: 7 },
+      { ref: "SEED-MSUME-DEP-04", major: 1200, daysAgo: 4 },
+      { ref: "SEED-MSUME-DEP-05", major: 800, daysAgo: 1 },
     ];
     for (const d of deposits) {
       const amount = BigInt(d.major) * 100n;
@@ -1591,23 +1672,23 @@ async function main() {
       }
     }
 
-    // Investments across opportunities
+    // Investments across management plans (user may hold several at once)
     const allOpps = await prisma.opportunity.findMany({
-      where: { status: "OPEN" },
-      orderBy: { createdAt: "asc" },
+      where: { slug: { startsWith: "plan-" } },
+      orderBy: { minAmount: "asc" },
     });
     const investSpecs = [
-      { slug: "starter-allocation", status: "ACTIVE" as const, daysAgo: 11, durationBump: 45 },
-      { slug: "growth-managed-account", status: "ACTIVE" as const, daysAgo: 8, durationBump: 70 },
-      { slug: "balanced-floor", status: "ACTIVE" as const, daysAgo: 5, durationBump: 55 },
-      { slug: "momentum-sprint", status: "MATURED" as const, daysAgo: 40, durationBump: -2 },
-      { slug: "conservative-preserve", status: "SETTLED" as const, daysAgo: 50, durationBump: -10 },
+      { slug: "plan-spark", status: "ACTIVE" as const, daysAgo: 3, durationBump: 4 },
+      { slug: "plan-momentum", status: "ACTIVE" as const, daysAgo: 5, durationBump: 9 },
+      { slug: "plan-velocity", status: "ACTIVE" as const, daysAgo: 8, durationBump: 22 },
+      { slug: "plan-spark", status: "MATURED" as const, daysAgo: 20, durationBump: -1, refSuffix: "matured" },
+      { slug: "plan-momentum", status: "SETTLED" as const, daysAgo: 40, durationBump: -5, refSuffix: "settled" },
     ];
 
     for (const spec of investSpecs) {
-      const opp = allOpps.find((o) => o.slug === spec.slug) ?? allOpps[0];
+      const opp = allOpps.find((o) => o.slug === spec.slug);
       if (!opp) continue;
-      const ref = `SEED-MSUME-INV-${spec.slug}`;
+      const ref = `SEED-MSUME-INV-${spec.refSuffix ?? spec.slug}-${spec.status.toLowerCase()}`;
       const existing = await prisma.investment.findUnique({ where: { reference: ref } });
       if (existing) continue;
 

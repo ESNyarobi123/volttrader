@@ -37,7 +37,7 @@ import {
   DEFAULT_CURRENCY,
 } from "@volt/config";
 import { currencySchema } from "@volt/validation";
-import type { CourseSummary } from "@volt/types";
+import type { CoursePlanView, CourseSummary } from "@volt/types";
 import { ApiRequestError, api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,6 +77,7 @@ const courseFormSchema = z.object({
   currency: currencySchema,
   accessType: z.enum(["FREE", "PAID"]),
   durationMinutes: z.coerce.number().int().nonnegative(),
+  coursePlanId: z.string().min(1, "Select a Forex plan"),
   status: z.nativeEnum(CourseStatus).optional(),
 });
 type CourseFormInput = z.infer<typeof courseFormSchema>;
@@ -92,6 +93,7 @@ interface AdminCourseDetail {
   price: { amount: number; currency: Currency };
   accessType: "FREE" | "PAID";
   durationMinutes: number;
+  coursePlanId?: string | null;
   status: CourseStatusType;
 }
 
@@ -109,6 +111,7 @@ const emptyDefaults: CourseFormInput = {
   currency: DEFAULT_CURRENCY,
   accessType: "PAID",
   durationMinutes: 60,
+  coursePlanId: "",
   status: CourseStatus.DRAFT,
 };
 
@@ -126,6 +129,12 @@ export default function AdminCoursesPage() {
     queryKey: ["admin-courses"],
     queryFn: () => api.get<CourseSummary[]>("/courses/admin/all"),
   });
+
+  const plansQuery = useQuery({
+    queryKey: ["admin-course-plans"],
+    queryFn: () => api.get<CoursePlanView[]>("/course-plans/admin/all"),
+  });
+  const plans = plansQuery.data ?? [];
 
   const {
     register,
@@ -181,6 +190,7 @@ export default function AdminCoursesPage() {
         priceMajor: fromMinorUnits(detail.price.amount, detail.price.currency),
         currency: detail.price.currency,
         accessType: detail.accessType,
+        coursePlanId: detail.coursePlanId ?? "",
         durationMinutes: detail.durationMinutes,
         status: detail.status,
       });
@@ -194,6 +204,7 @@ export default function AdminCoursesPage() {
         priceMajor: fromMinorUnits(course.price.amount, course.price.currency as Currency),
         currency: course.price.currency as Currency,
         accessType: course.accessType,
+        coursePlanId: course.coursePlanId ?? "",
         durationMinutes: course.durationMinutes,
         status: course.status,
       });
@@ -252,6 +263,7 @@ export default function AdminCoursesPage() {
       },
       accessType: values.accessType,
       durationMinutes: values.durationMinutes,
+      coursePlanId: values.coursePlanId || null,
       ...(editingId && values.status ? { status: values.status } : {}),
     };
 
@@ -661,10 +673,26 @@ export default function AdminCoursesPage() {
               <FormSection
                 icon={Wallet}
                 title="Access & pricing"
-                description="Free or paid, duration and currency."
+                description="Assign a Forex plan tier, then price."
                 tone="green"
               >
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Forex plan"
+                    htmlFor="coursePlanId"
+                    error={errors.coursePlanId?.message}
+                    hint="This plan and higher unlock the course"
+                  >
+                    <Select id="coursePlanId" {...register("coursePlanId")}>
+                      <option value="">Select plan…</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                          {p.price.amount === 0 ? " (Free)" : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
                   <Field label="Access type" htmlFor="accessType">
                     <div className="relative">
                       <ToggleLeft className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

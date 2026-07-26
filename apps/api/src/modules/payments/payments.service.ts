@@ -627,6 +627,53 @@ export class PaymentsService {
       return;
     }
 
+    if (payment.type === "COURSE_PLAN_PURCHASE" && payment.coursePlanId) {
+      await tx.coursePlanSubscription.updateMany({
+        where: { userId: payment.userId, status: "ACTIVE" },
+        data: { status: "CANCELLED", endsAt: new Date() },
+      });
+      await tx.coursePlanSubscription.create({
+        data: {
+          userId: payment.userId,
+          coursePlanId: payment.coursePlanId,
+          status: "ACTIVE",
+          paymentId: payment.id,
+        },
+      });
+      const plan = await tx.coursePlan.findUniqueOrThrow({
+        where: { id: payment.coursePlanId },
+      });
+      const courses = await tx.course.findMany({
+        where: {
+          status: "PUBLISHED",
+          coursePlan: { sortOrder: { lte: plan.sortOrder } },
+        },
+        select: { id: true },
+      });
+      for (const course of courses) {
+        const existing = await tx.enrollment.findUnique({
+          where: {
+            userId_courseId: { userId: payment.userId, courseId: course.id },
+          },
+        });
+        if (!existing) {
+          await tx.enrollment.create({
+            data: {
+              userId: payment.userId,
+              courseId: course.id,
+              paymentId: payment.id,
+            },
+          });
+        } else if (existing.status === "REVOKED") {
+          await tx.enrollment.update({
+            where: { id: existing.id },
+            data: { status: "ACTIVE" },
+          });
+        }
+      }
+      return;
+    }
+
     if (payment.type === "INVESTMENT_FUNDING") {
       // Activate the PENDING investment funded by this payment.
       const investment = await tx.investment.findFirst({ where: { paymentId: payment.id } });

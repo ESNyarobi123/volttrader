@@ -14,6 +14,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { AuditService } from "../audit/audit.service";
 import { GatewayRegistry } from "../payments/gateways/gateway.registry";
+import { PlanAccessService } from "../plan-access/plan-access.service";
 import { toOpportunitySummary } from "../opportunities/opportunity.mapper";
 import { applyMultiplier, toMoney } from "../../common/money";
 
@@ -29,6 +30,7 @@ export class InvestmentsService {
     private readonly audit: AuditService,
     private readonly gateways: GatewayRegistry,
     private readonly config: ConfigService,
+    private readonly planAccess: PlanAccessService,
   ) {}
 
   private toView(inv: InvestmentWithOpportunity): InvestmentView {
@@ -98,6 +100,13 @@ export class InvestmentsService {
       where: { id: input.opportunityId },
     });
     if (!opportunity) throw new NotFoundException("Opportunity not found");
+
+    const allowed = await this.planAccess.canAccessOpportunity(userId, opportunity);
+    if (!allowed) {
+      throw new ForbiddenException(
+        "This management plan is not available for investment right now.",
+      );
+    }
     if (opportunity.status !== "OPEN") {
       throw new BadRequestException("This opportunity is not open for investment");
     }

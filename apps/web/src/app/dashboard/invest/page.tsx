@@ -2,21 +2,33 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  CalendarDays,
-  PlusCircle,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
-import type { InvestmentView, OpportunitySummary, PortfolioSummary } from "@volt/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, CalendarDays, TrendingUp, Wallet } from "lucide-react";
+import type {
+  InvestmentPlanCatalogItem,
+  InvestmentPlanMembershipView,
+  InvestmentView,
+  PaymentView,
+  PortfolioSummary,
+} from "@volt/types";
 import { api, apiErrorMessage } from "@/lib/api";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, toMinorUnits } from "@/lib/format";
 import { humanize, statusVariant } from "@/lib/status";
+import { ProjectionDisclaimer } from "@/components/shared/compliance-note";
+import { InvestmentPlanCard } from "@/components/site/investment-plan-card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +39,44 @@ function daysUntil(iso: string | null): number | null {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
 }
 
+function isInsufficientBalance(message: string) {
+  return /insufficient wallet balance/i.test(message);
+}
+
+function statusCopy(inv: InvestmentView): string {
+  if (inv.status === "PENDING") {
+    return "Waiting for payment confirmation before the earning cycle starts.";
+  }
+  if (inv.status === "ACTIVE") {
+    const days = daysUntil(inv.maturesAt);
+    if (days !== null && days > 0) {
+      return `Earning cycle in progress · matures in ${days} day${days === 1 ? "" : "s"}. Withdraw after settlement.`;
+    }
+    if (days !== null && days <= 0) {
+      return "Cycle ended · awaiting settlement. Funds become withdrawable after settlement.";
+    }
+    return "Earning cycle in progress. Withdraw after the plan matures and settles.";
+  }
+  if (inv.status === "SETTLED" || inv.status === "MATURED") {
+    return "Cycle complete. Settled value is in your wallet — you can withdraw from Wallet.";
+  }
+  return humanize(inv.status);
+}
+
+interface InvestResponse {
+  investment?: InvestmentView;
+  payment?: PaymentView;
+}
+
 export default function DashboardInvestPage() {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterId>("all");
+  const [selected, setSelected] = useState<InvestmentPlanCatalogItem | null>(null);
+  const [amount, setAmount] = useState("");
+  const [source, setSource] = useState<"WALLET" | "PAYMENT">("WALLET");
+  const [acceptedRisk, setAcceptedRisk] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [needsDeposit, setNeedsDeposit] = useState(false);
 
   const portfolioQuery = useQuery({
     queryKey: ["investments", "portfolio"],
@@ -40,26 +88,48 @@ export default function DashboardInvestPage() {
     queryFn: () => api.get<InvestmentView[]>("/investments/me"),
   });
 
-  const openOppsQuery = useQuery({
-    queryKey: ["opportunities", "open"],
-    queryFn: () => api.get<OpportunitySummary[]>("/opportunities"),
+  const catalogQuery = useQuery({
+    queryKey: ["investment-plans", "me"],
+    queryFn: () => api.get<InvestmentPlanMembershipView>("/investment-plans/me"),
+  });
+
+  const invest = useMutation({
+    mutationFn: () => {
+      if (!selected?.opportunityId) throw new Error("Plan not available");
+      return api.post<InvestResponse | InvestmentView>("/investments", {
+        opportunityId: selected.opportunityId,
+        amount: toMinorUnits(Number(amount), selected.minAmount.currency),
+        source,
+        acceptedRisk: true as const,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    },
+    onSuccess: async (res) => {
+      const checkoutUrl = (res as InvestResponse).payment?.checkoutUrl;
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+      setSelected(null);
+      setFormError(null);
+      setNeedsDeposit(false);
+      setAcceptedRisk(false);
+      await queryClient.invalidateQueries({ queryKey: ["investments"] });
+      await queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    },
+    onError: (err) => {
+      const message = apiErrorMessage(err, "Could not invest in this plan");
+      setFormError(message);
+      setNeedsDeposit(isInsufficientBalance(message));
+    },
   });
 
   const investments = investmentsQuery.data ?? [];
   const portfolio = portfolioQuery.data;
-  const openOpps = (openOppsQuery.data ?? []).slice(0, 4);
+  const plans = catalogQuery.data?.plans ?? [];
 
   const activeCount = investments.filter((i) => i.status === "ACTIVE").length;
   const pendingCount = investments.filter((i) => i.status === "PENDING").length;
-
-  const focus = useMemo(() => {
-    return (
-      investments.find((i) => i.status === "ACTIVE") ??
-      investments.find((i) => i.status === "PENDING") ??
-      investments[0] ??
-      null
-    );
-  }, [investments]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return investments;
@@ -69,6 +139,48 @@ export default function DashboardInvestPage() {
     return investments.filter((i) => i.status === filter);
   }, [investments, filter]);
 
+  const activeByPlan = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const inv of investments) {
+      if (inv.status !== "ACTIVE" && inv.status !== "PENDING") continue;
+      const key = inv.opportunity.name;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [investments]);
+
+  function openInvest(plan: InvestmentPlanCatalogItem) {
+    setSelected(plan);
+    setAmount(String(plan.minAmount.amount / 100));
+    setSource("WALLET");
+    setAcceptedRisk(false);
+    setFormError(null);
+    setNeedsDeposit(false);
+  }
+
+  function submitInvest() {
+    setFormError(null);
+    setNeedsDeposit(false);
+    if (!selected?.opportunityId) {
+      setFormError("This plan is not open for investment yet.");
+      return;
+    }
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) {
+      setFormError("Enter a valid amount.");
+      return;
+    }
+    if (toMinorUnits(n, selected.minAmount.currency) < selected.minAmount.amount) {
+      setFormError(`Minimum is ${formatMoney(selected.minAmount)}.`);
+      return;
+    }
+    if (!acceptedRisk) {
+      setFormError("Accept the risk disclosure to continue.");
+      return;
+    }
+    invest.mutate();
+  }
+
   const loading = portfolioQuery.isLoading || investmentsQuery.isLoading;
 
   return (
@@ -76,30 +188,21 @@ export default function DashboardInvestPage() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Invest</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Your portfolio.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pick a management plan, fund it from your wallet, then track earnings until maturity.
+            You can hold more than one plan.
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
-          <Link
-            href="/dashboard/wallet"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "justify-center rounded-full",
-            )}
-          >
-            <Wallet className="h-4 w-4" />
-            Wallet
-          </Link>
-          <Link
-            href="/trading-floor"
-            className={cn(
-              buttonVariants({ size: "sm" }),
-              "justify-center rounded-full shadow-volt",
-            )}
-          >
-            <PlusCircle className="h-4 w-4" />
-            Explore
-          </Link>
-        </div>
+        <Link
+          href="/dashboard/wallet"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "justify-center rounded-full",
+          )}
+        >
+          <Wallet className="h-4 w-4" />
+          Wallet
+        </Link>
       </header>
 
       {investmentsQuery.isError ? (
@@ -108,12 +211,9 @@ export default function DashboardInvestPage() {
         </Alert>
       ) : null}
 
-      {/* Stats — accent bars + icons */}
       <section className="grid grid-cols-3 gap-3">
         {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-2xl" />
-          ))
+          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
         ) : (
           <>
             <Stat
@@ -138,50 +238,68 @@ export default function DashboardInvestPage() {
         )}
       </section>
 
-      {/* Focus — Learn-style continue band */}
-      {loading ? (
-        <Skeleton className="h-32 w-full rounded-2xl" />
-      ) : focus ? (
-        <section className="flex flex-col gap-4 rounded-2xl border border-volt/25 bg-gradient-to-br from-volt/12 via-surface to-surface p-4 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:p-5">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-ink/90 text-white shadow-sm">
-            <TrendingUp className="h-6 w-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-volt-dim">
-                Focus
-              </p>
-              <Badge variant={statusVariant(focus.status)}>{humanize(focus.status)}</Badge>
-            </div>
-            <h2 className="mt-1 truncate font-display text-lg font-bold tracking-tight">
-              {focus.opportunity.name}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <MetricChip label="Principal" value={formatMoney(focus.principal)} />
-              <MetricChip label="Target" value={formatMoney(focus.projectedValue)} />
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {focus.maturesAt ? `Matures ${formatDate(focus.maturesAt)}` : "Schedule pending"} ·
-              Targets are not guarantees
-            </p>
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-display text-lg font-bold tracking-tight">Management plans</h2>
+          <p className="text-xs text-muted-foreground">
+            Same packages as the landing page — invest capital, wait for the cycle, then withdraw
+            after settlement.
+          </p>
+        </div>
+        {catalogQuery.isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[28rem] rounded-[1.75rem]" />
+            ))}
           </div>
-          <Link
-            href={`/dashboard/invest/${focus.id}`}
-            className={cn(
-              buttonVariants({ size: "md" }),
-              "w-full shrink-0 rounded-full shadow-volt sm:w-auto",
-            )}
-          >
-            View
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </section>
-      ) : null}
+        ) : (
+          <div className="rounded-[2rem] bg-gradient-to-b from-surface-2/90 via-surface to-surface p-3 sm:p-5 md:rounded-[2.5rem]">
+            <div className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:items-end">
+              {plans.map((plan) => {
+                const held = activeByPlan.get(plan.name) ?? 0;
+                const available = Boolean(plan.opportunityId);
+                return (
+                  <InvestmentPlanCard
+                    key={plan.id}
+                    plan={plan}
+                    cta={
+                      <div className="space-y-2">
+                        {held > 0 ? (
+                          <p
+                            className={cn(
+                              "text-center text-[11px] font-semibold",
+                              plan.featured ? "text-white/80" : "text-volt-dim",
+                            )}
+                          >
+                            You have {held} active in this plan
+                          </p>
+                        ) : null}
+                        <Button
+                          size="lg"
+                          className={cn(
+                            "h-11 w-full rounded-full text-sm font-semibold",
+                            plan.featured
+                              ? "bg-white text-ink shadow-lg hover:bg-white/90"
+                              : "bg-ink text-white hover:bg-ink/90",
+                          )}
+                          disabled={!available || invest.isPending}
+                          onClick={() => openInvest(plan)}
+                        >
+                          {available ? "Invest in this plan" : "Coming soon"}
+                        </Button>
+                      </div>
+                    }
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
 
-      {/* My investments — horizontal rows like Learn */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-bold tracking-tight">My investments</h2>
+          <h2 className="font-display text-lg font-bold tracking-tight">Your investments</h2>
           {investments.length > 0 ? (
             <div className="flex flex-wrap gap-1">
               {(
@@ -214,23 +332,16 @@ export default function DashboardInvestPage() {
         {investmentsQuery.isLoading ? (
           <div className="grid gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-2xl" />
+              <Skeleton key={i} className="h-24 rounded-2xl" />
             ))}
           </div>
         ) : investments.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-surface p-6 text-center shadow-card">
             <TrendingUp className="mx-auto h-8 w-8 text-volt-dim" />
             <p className="mt-3 font-semibold">No investments yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Start with Account Management.</p>
-            <Link
-              href="/trading-floor"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "mt-4 rounded-full",
-              )}
-            >
-              Explore
-            </Link>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose a plan above and invest. Deposit to your wallet first if balance is low.
+            </p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center">
@@ -252,42 +363,105 @@ export default function DashboardInvestPage() {
         )}
       </section>
 
-      {/* Open now — compact strip after portfolio */}
-      {!openOppsQuery.isLoading && openOpps.length > 0 ? (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-bold tracking-tight">Open now</h2>
-            <Link
-              href="/trading-floor"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-volt-dim hover:text-foreground"
-            >
-              All
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {openOpps.map((opp) => (
-              <Link
-                key={opp.id}
-                href={`/trading-floor/${opp.slug}`}
-                className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-card transition hover:border-volt/35 hover:shadow-lift"
-              >
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-volt/12 text-volt-dim">
-                  <TrendingUp className="h-4 w-4" />
+      <Dialog
+        open={!!selected}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelected(null);
+            setFormError(null);
+            setNeedsDeposit(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invest in {selected?.name}</DialogTitle>
+            <DialogDescription>
+              Fund this plan from your wallet. You wait through the management cycle, then withdraw
+              after settlement. Targets are not guarantees.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selected ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-volt/20 bg-volt/5 px-3 py-2.5 text-sm">
+                <p className="font-semibold">{selected.projectionHighlight} projected</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {selected.durationDays % 7 === 0
+                    ? `${selected.durationDays / 7}-week`
+                    : `${selected.durationDays}-day`}{" "}
+                  cycle · from {formatMoney(selected.minAmount)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invest-amount">Amount ({selected.minAmount.currency})</Label>
+                <Input
+                  id="invest-amount"
+                  type="number"
+                  min={selected.minAmount.amount / 100}
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invest-source">Pay with</Label>
+                <Select
+                  id="invest-source"
+                  value={source}
+                  onChange={(e) => setSource(e.target.value as "WALLET" | "PAYMENT")}
+                >
+                  <option value="WALLET">Wallet balance</option>
+                  <option value="PAYMENT">Online payment</option>
+                </Select>
+              </div>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={acceptedRisk}
+                  onChange={(e) => setAcceptedRisk(e.target.checked)}
+                />
+                <span>
+                  I accept the risk disclosure and understand projected outcomes are not guarantees.
                 </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold group-hover:text-volt-dim">
-                    {opp.name}
-                  </p>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                    {humanize(opp.riskCategory)} · {opp.durationDays}d
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
+              </label>
+
+              <ProjectionDisclaimer />
+
+              {formError ? (
+                <Alert
+                  variant="danger"
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span>{formError}</span>
+                  {needsDeposit ? (
+                    <Link
+                      href="/dashboard/wallet"
+                      className={cn(buttonVariants({ size: "sm" }), "shrink-0 rounded-full shadow-volt")}
+                      onClick={() => setSelected(null)}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      Deposit to wallet
+                    </Link>
+                  ) : null}
+                </Alert>
+              ) : null}
+
+              <Button
+                className="w-full rounded-full shadow-volt"
+                disabled={invest.isPending}
+                onClick={submitInvest}
+              >
+                {invest.isPending ? "Processing…" : "Confirm investment"}
+              </Button>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -324,17 +498,6 @@ function Stat({
   );
 }
 
-function MetricChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border/80 bg-surface/80 px-3 py-1.5">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="truncate text-sm font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-}
-
 function InvestmentRow({ investment }: { investment: InvestmentView }) {
   const days = daysUntil(investment.maturesAt);
 
@@ -353,15 +516,15 @@ function InvestmentRow({ investment }: { investment: InvestmentView }) {
             {humanize(investment.status)}
           </Badge>
           <span className="text-[11px] text-muted-foreground">
-            {humanize(investment.opportunity.riskCategory)} · {investment.opportunity.durationDays}
-            d
+            {investment.opportunity.durationDays}d cycle
           </span>
         </div>
         <p className="mt-1 truncate font-semibold group-hover:text-volt-dim">
-          {investment.opportunity.name}
+          {investment.opportunity.name} plan
         </p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {formatMoney(investment.principal)}
+        <p className="mt-0.5 text-xs text-muted-foreground">{statusCopy(investment)}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          Invested {formatMoney(investment.principal)}
           <span className="mx-1.5 text-border">→</span>
           <span className="font-medium text-foreground">
             {formatMoney(investment.projectedValue)}
@@ -374,12 +537,12 @@ function InvestmentRow({ investment }: { investment: InvestmentView }) {
         <span className="rounded-lg bg-surface-2 px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground">
           {investment.maturesAt
             ? days !== null && days >= 0
-              ? `${days}d`
+              ? `${days}d left`
               : formatDate(investment.maturesAt)
             : "—"}
         </span>
         <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-volt-dim">
-          Open
+          Details
           <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
         </span>
       </div>

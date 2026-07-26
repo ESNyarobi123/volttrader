@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 import { Role } from "@volt/config";
 import {
+  investmentPlanActivateSchema,
   investmentPlanUpdateSchema,
   investmentPlanUpsertSchema,
+  type InvestmentPlanActivateInput,
   type InvestmentPlanUpdateInput,
   type InvestmentPlanUpsertInput,
 } from "@volt/validation";
@@ -20,6 +23,22 @@ export class InvestmentPlansController {
   @Public()
   listPublic() {
     return this.plans.listPublished();
+  }
+
+  @Get("me")
+  @Auth()
+  membership(@CurrentUser("id") userId: string) {
+    return this.plans.membershipFor(userId);
+  }
+
+  @Post("activate")
+  @Auth()
+  activate(
+    @Body(new ZodValidationPipe(investmentPlanActivateSchema)) dto: InvestmentPlanActivateInput,
+    @CurrentUser("id") userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    return this.plans.activate(userId, dto, req.ip);
   }
 
   @Get("admin/all")

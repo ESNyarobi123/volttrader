@@ -18,5 +18,6 @@ export function toCourseSummary(course: CourseWithCount): CourseSummary {
     lessonsCount: course._count.lessons,
     thumbnailUrl: course.thumbnailKey ?? null,
     status: course.status,
+    coursePlanId: course.coursePlanId ?? null,
   };
 }

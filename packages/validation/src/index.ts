@@ -160,8 +160,23 @@ export const courseUpsertSchema = strictObject({
   durationMinutes: z.number().int().nonnegative().default(0),
   thumbnailKey: z.string().optional(),
   categoryId: z.string().optional(),
+  /** Forex plan tier that unlocks this course (required for published academy content). */
+  coursePlanId: z.string().min(1).nullable().optional(),
 });
 export type CourseUpsertInput = z.infer<typeof courseUpsertSchema>;
+
+export const coursePlanSubscribeSchema = strictObject({
+  coursePlanId: z.string().min(1),
+  source: z.enum(["WALLET", "PAYMENT"]).default("WALLET"),
+  gateway: z.string().min(1).max(40).optional(),
+  idempotencyKey: z.string().uuid().optional(),
+});
+export type CoursePlanSubscribeInput = z.infer<typeof coursePlanSubscribeSchema>;
+
+export const investmentPlanActivateSchema = strictObject({
+  investmentPlanId: z.string().min(1),
+});
+export type InvestmentPlanActivateInput = z.infer<typeof investmentPlanActivateSchema>;
 
 export const lessonUpsertSchema = strictObject({
   courseId: z.string(),
@@ -239,6 +254,8 @@ export const opportunityUpsertSchema = strictObject({
   terms: z.string().min(20, "Terms are required"),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
+  /** Management plan tier that unlocks this opportunity. */
+  investmentPlanId: z.string().min(1).nullable().optional(),
 });
 export type OpportunityUpsertInput = z.infer<typeof opportunityUpsertSchema>;
 
