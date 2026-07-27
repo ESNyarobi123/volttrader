@@ -284,22 +284,35 @@ async function main() {
   });
 
   // --- Super admin ---
-  const adminEmail = "admin@volttrades.local";
-  const adminPasswordHash = await bcrypt.hash("Admin@12345", 12);
-  const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {},
-    create: {
-      fullName: "Volt Super Admin",
-      email: adminEmail,
-      passwordHash: adminPasswordHash,
-      role: "SUPER_ADMIN",
-      emailVerified: true,
-      kycStatus: "APPROVED",
-      acceptedTermsAt: new Date(),
-      country: "Tanzania",
-    },
-  });
+  const adminEmail = "admin@mandandaspace.com";
+  const adminPasswordHash = await bcrypt.hash("Mandanda@2026", 12);
+  const existingAdmin =
+    (await prisma.user.findUnique({ where: { email: adminEmail } })) ??
+    (await prisma.user.findUnique({ where: { email: "admin@volttrades.local" } })) ??
+    (await prisma.user.findFirst({ where: { role: "SUPER_ADMIN" } }));
+  const admin = existingAdmin
+    ? await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: {
+          email: adminEmail,
+          passwordHash: adminPasswordHash,
+          fullName: "Kassim Mandanda",
+          emailVerified: true,
+          role: "SUPER_ADMIN",
+        },
+      })
+    : await prisma.user.create({
+        data: {
+          fullName: "Kassim Mandanda",
+          email: adminEmail,
+          passwordHash: adminPasswordHash,
+          role: "SUPER_ADMIN",
+          emailVerified: true,
+          kycStatus: "APPROVED",
+          acceptedTermsAt: new Date(),
+          country: "Tanzania",
+        },
+      });
   await prisma.wallet.upsert({
     where: { userId: admin.id },
     update: {},
@@ -1987,7 +2000,7 @@ async function main() {
   }
 
   console.log("\nSeed complete.\n");
-  console.log("Admin:   admin@volttrades.local / Admin@12345");
+  console.log("Admin:   admin@mandandaspace.com / Mandanda@2026");
   console.log("Finance: finance@volttrades.local / Staff@12345");
   console.log("Support: support@volttrades.local / Staff@12345");
   console.log(`Members: ${DEMO_USERS[0].email} … ${DEMO_USERS[9].email} / ${DEMO_USER_PASSWORD}`);
