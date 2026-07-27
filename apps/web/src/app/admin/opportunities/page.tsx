@@ -99,7 +99,7 @@ const emptyDefaults: OpportunityFormInput = {
   riskDisclosure:
     "Capital is at risk. Projected outcomes are illustrative targets only and are never guaranteed. Past performance does not predict future results.",
   terms:
-    "By investing you acknowledge the risk disclosure, accept that projections are not guarantees, and agree to Volt Trades terms of use.",
+    "By investing you acknowledge the risk disclosure, accept that projections are not guarantees, and agree to Mandanda Space terms of use.",
   investmentPlanId: "",
   status: OpportunityStatus.DRAFT,
 };

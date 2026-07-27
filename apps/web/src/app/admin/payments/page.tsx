@@ -841,7 +841,9 @@ export default function AdminPaymentsPage() {
                 ) : null}
                 <div className="flex flex-wrap justify-end gap-2 pt-2">
                   {detail.gateway === "manual" &&
-                  detail.type === "WALLET_DEPOSIT" &&
+                  (detail.type === "WALLET_DEPOSIT" ||
+                    detail.type === "COURSE_PLAN_PURCHASE" ||
+                    detail.type === "INVESTMENT_FUNDING") &&
                   (detail.status === "UNDER_REVIEW" || detail.status === "PENDING") ? (
                     <Button
                       variant="primary"
@@ -849,7 +851,13 @@ export default function AdminPaymentsPage() {
                       onClick={() => confirmManual.mutate(detail.id)}
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      {confirmManual.isPending ? "Confirming…" : "Confirm & credit wallet"}
+                      {confirmManual.isPending
+                        ? "Confirming…"
+                        : detail.type === "COURSE_PLAN_PURCHASE"
+                          ? "Confirm & unlock plan"
+                          : detail.type === "INVESTMENT_FUNDING"
+                            ? "Confirm & activate investment"
+                            : "Confirm & credit wallet"}
                     </Button>
                   ) : null}
                   <Button variant="outline" onClick={() => setDetail(null)}>

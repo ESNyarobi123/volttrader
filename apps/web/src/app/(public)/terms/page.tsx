@@ -2,21 +2,21 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "The terms and conditions governing use of Volt Trades.",
+  description: "The terms and conditions governing use of Mandanda Space.",
 };
 
 const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "1. Acceptance of terms",
     body: [
-      "By creating an account, accessing, or using the Volt Trades platform (\"Volt Trades\", \"we\", \"us\"), you agree to be bound by these Terms of Service and any policies referenced within them, including our Privacy Policy and Risk Disclosure.",
+      "By creating an account, accessing, or using the Mandanda Space platform (\"Mandanda Space\", \"we\", \"us\"), you agree to be bound by these Terms of Service and any policies referenced within them, including our Privacy Policy and Risk Disclosure.",
       "If you do not agree with any part of these terms, you must not register for or use the platform.",
     ],
   },
   {
     heading: "2. Eligibility",
     body: [
-      "You must be at least 18 years old and legally capable of entering into binding contracts in your jurisdiction to use Volt Trades.",
+      "You must be at least 18 years old and legally capable of entering into binding contracts in your jurisdiction to use Mandanda Space.",
       "You are responsible for ensuring that your use of the platform complies with the laws applicable to you, including any restrictions on investment or trading activity in your country of residence.",
     ],
   },
@@ -58,7 +58,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "8. Limitation of liability",
     body: [
-      "To the maximum extent permitted by law, Volt Trades is not liable for indirect, incidental, or consequential losses arising from your use of the platform, including trading or investment losses arising from market conditions.",
+      "To the maximum extent permitted by law, Mandanda Space is not liable for indirect, incidental, or consequential losses arising from your use of the platform, including trading or investment losses arising from market conditions.",
     ],
   },
   {

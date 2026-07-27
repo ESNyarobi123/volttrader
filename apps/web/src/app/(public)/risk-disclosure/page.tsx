@@ -4,7 +4,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 
 export const metadata: Metadata = {
   title: "Risk Disclosure",
-  description: "Important risk information about Forex trading and Trading Floor investments on Volt Trades.",
+  description: "Important risk information about Forex trading and Trading Floor investments on Mandanda Space.",
 };
 
 const SECTIONS: { heading: string; body: string[] }[] = [
@@ -18,7 +18,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "2. No guaranteed returns",
     body: [
-      "Volt Trades never guarantees returns on any course, opportunity, or investment. Any multiplier, percentage, or figure shown (for example, a projection model such as \"x5\") is a configurable projection or target set by our team, not a promise or commitment of actual performance.",
+      "Mandanda Space never guarantees returns on any course, opportunity, or investment. Any multiplier, percentage, or figure shown (for example, a projection model such as \"x5\") is a configurable projection or target set by our team, not a promise or commitment of actual performance.",
       "All figures shown on opportunity pages are described using one of the following labels: Projected Outcome, Target Performance, or Historical Performance. None of these labels represent a guarantee.",
     ],
   },
@@ -31,8 +31,8 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "4. Your responsibility before investing",
     body: [
-      "Before investing, you must review the specific risk disclosure and terms attached to that opportunity and actively confirm that you understand and accept the risk involved. Volt Trades will not process an investment until this acknowledgement is recorded.",
-      "You are responsible for assessing whether an opportunity is suitable for your personal financial situation. Volt Trades does not provide individualized investment advice.",
+      "Before investing, you must review the specific risk disclosure and terms attached to that opportunity and actively confirm that you understand and accept the risk involved. Mandanda Space will not process an investment until this acknowledgement is recorded.",
+      "You are responsible for assessing whether an opportunity is suitable for your personal financial situation. Mandanda Space does not provide individualized investment advice.",
     ],
   },
   {
@@ -44,7 +44,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "6. Regulatory status",
     body: [
-      "Volt Trades' real-money investment features are subject to ongoing legal and compliance review and may be limited, delayed, or unavailable in certain jurisdictions pending regulatory clearance.",
+      "Mandanda Space' real-money investment features are subject to ongoing legal and compliance review and may be limited, delayed, or unavailable in certain jurisdictions pending regulatory clearance.",
     ],
   },
   {
@@ -74,7 +74,7 @@ export default function RiskDisclosurePage() {
             <div>
               <AlertTitle>Trading and investing involve risk of loss</AlertTitle>
               <p className="text-sm leading-relaxed">
-                Volt Trades does not guarantee returns on any course, opportunity, or investment. All performance
+                Mandanda Space does not guarantee returns on any course, opportunity, or investment. All performance
                 figures are Projected Outcome, Target Performance, or Historical Performance — never a promise.
                 Only invest capital you can afford to lose.
               </p>

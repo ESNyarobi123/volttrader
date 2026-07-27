@@ -1,4 +1,4 @@
-import type { ApiError } from "@volt/types";
+import type { ApiError, AuthResponse } from "@volt/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
@@ -47,10 +47,64 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   token?: string; // explicit token (server components)
   auth?: boolean; // attach stored token (default true)
+  /** Internal: skip 401 → refresh → retry (used by the refresh call itself). */
+  _skipRefresh?: boolean;
+}
+
+/** Single in-flight refresh so parallel 401s don't rotate the refresh token twice. */
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = tokenStore.refresh;
+    if (!refreshToken) {
+      tokenStore.clear();
+      return false;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+        cache: "no-store",
+      });
+      const text = await res.text();
+      let json: unknown = {};
+      if (text) {
+        try {
+          json = JSON.parse(text);
+        } catch {
+          tokenStore.clear();
+          return false;
+        }
+      }
+      if (!res.ok) {
+        tokenStore.clear();
+        return false;
+      }
+      const data = (json as { data: AuthResponse }).data;
+      if (!data?.tokens?.accessToken || !data?.tokens?.refreshToken) {
+        tokenStore.clear();
+        return false;
+      }
+      tokenStore.set(data.tokens.accessToken, data.tokens.refreshToken);
+      return true;
+    } catch {
+      tokenStore.clear();
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, token, auth = true, headers, ...rest } = options;
+  const { body, token, auth = true, headers, _skipRefresh, ...rest } = options;
   const finalHeaders = new Headers(headers);
   finalHeaders.set("Content-Type", "application/json");
 
@@ -71,6 +125,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       "Cannot reach the server. Make sure the API is running (port 4000) and try again.",
       0,
     );
+  }
+
+  // Expired access token → rotate with refresh, then retry once.
+  if (
+    res.status === 401 &&
+    auth &&
+    !_skipRefresh &&
+    !token &&
+    typeof window !== "undefined" &&
+    tokenStore.refresh
+  ) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return request<T>(path, { ...options, _skipRefresh: true });
+    }
   }
 
   let json: unknown = {};

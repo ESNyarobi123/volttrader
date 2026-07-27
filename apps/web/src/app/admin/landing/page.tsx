@@ -168,7 +168,8 @@ export default function AdminLandingPage() {
                 />
               </Field>
               <p className="text-xs text-muted-foreground">
-                Video autoplays muted (browser rule), then visitors tap “Tap for sound” for audio.
+                Video autoplays. Sound is on by default (on phones it starts after the first tap —
+                browser rule). Visitors can mute anytime.
               </p>
             </CardContent>
           </Card>

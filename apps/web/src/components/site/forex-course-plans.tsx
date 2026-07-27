@@ -29,7 +29,7 @@ export function ForexCoursePlans({
             Choose the perfect Forex course plan
           </h2>
           <p className="mt-2 text-sm text-muted-foreground md:text-base">
-            From free foundations to full mastery — choose the plan that matches your learning pace.
+            Pay once — lifetime access to the courses in your plan. Upgrade anytime for higher tiers.
           </p>
         </div>
 

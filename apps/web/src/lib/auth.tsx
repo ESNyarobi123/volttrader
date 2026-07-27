@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadMe = useCallback(async () => {
-    if (!tokenStore.access) {
+    if (!tokenStore.access && !tokenStore.refresh) {
       setUser(null);
       setLoading(false);
       return;
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await api.get<SessionUser>("/auth/me");
       setUser(me);
     } catch {
+      // api client already tried refresh on 401; if still failing, session is gone.
       tokenStore.clear();
       setUser(null);
     } finally {

@@ -65,7 +65,7 @@ export function SiteFooter() {
               LEARN · INVEST · BUILD
             </p>
             <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-white md:text-3xl">
-              Ready to grow with Volt Trades?
+              Ready to grow with Mandanda Space?
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-white/60 md:text-base">
               Education, wallet, and curated opportunities — one clear ecosystem.
@@ -136,7 +136,7 @@ export function SiteFooter() {
 
         {/* Bottom bar */}
         <div className="flex flex-col gap-3 border-t border-white/10 py-6 text-[11px] leading-relaxed text-white/45 md:flex-row md:items-center md:justify-between md:gap-6">
-          <p>© {year} Volt Trades. All rights reserved.</p>
+          <p>© {year} Mandanda Space. All rights reserved.</p>
           <p className="md:max-w-xl md:text-right">
             Trading and investing carry risk. Projections are targets, not guarantees. Not investment
             advice.{" "}

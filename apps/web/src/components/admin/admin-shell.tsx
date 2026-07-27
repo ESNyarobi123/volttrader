@@ -24,12 +24,12 @@ import {
   X,
   PanelLeftClose,
   PanelLeft,
-  Zap,
   UserRound,
   ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Logo } from "@/components/shared/logo";
+import { Logo, BrandMark } from "@/components/shared/logo";
+import { BRAND_NAME } from "@/lib/brand";
 import { AdminGlobalSearch } from "@/components/admin/admin-global-search";
 import { AdminNotifications } from "@/components/admin/admin-notifications";
 import { useAuth } from "@/lib/auth";
@@ -226,16 +226,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
           )}
         >
           {showLabels ? (
-            <Logo href="/admin" />
+            <Logo href="/admin" size="sm" />
           ) : (
             <Link
               href="/admin"
               prefetch
               onClick={() => onNavClick("/admin")}
-              className="grid h-9 w-9 place-items-center rounded-xl bg-volt text-volt-foreground shadow-volt"
-              title="Volt Trades"
+              title={BRAND_NAME}
+              className="rounded-2xl"
             >
-              <Zap className="h-5 w-5" aria-hidden />
+              <BrandMark size={36} />
             </Link>
           )}
 

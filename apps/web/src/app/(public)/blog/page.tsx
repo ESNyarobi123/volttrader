@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = {
   title: "Blog",
-  description: "Insights on Forex education, markets, and Volt Trades product updates.",
+  description: "Insights on Forex education, markets, and Mandanda Space product updates.",
 };
 
 const SAMPLE_TOPICS = [
@@ -14,7 +14,7 @@ const SAMPLE_TOPICS = [
     category: "Education",
     title: "Understanding risk categories before you invest",
     description:
-      "A plain-language primer on how Volt Trades classifies opportunities as low, medium, or high risk — and why that matters.",
+      "A plain-language primer on how Mandanda Space classifies opportunities as low, medium, or high risk — and why that matters.",
   },
   {
     category: "Product",
@@ -36,7 +36,7 @@ export default function BlogPage() {
       <div className="mx-auto max-w-2xl text-center">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Insights</h1>
         <p className="mt-4 text-base text-muted-foreground">
-          Articles on Forex education, capital management, and how Volt Trades works under the hood.
+          Articles on Forex education, capital management, and how Mandanda Space works under the hood.
         </p>
       </div>
 

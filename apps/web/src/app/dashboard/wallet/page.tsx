@@ -16,7 +16,6 @@ import {
   Check,
   ClipboardList,
   Copy,
-  Globe,
   History,
   Landmark,
   Smartphone,
@@ -49,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SoftNotice } from "@/components/shared/soft-notice";
+import { PaymentMethodCard } from "@/components/shared/payment-method-card";
 import { cn } from "@/lib/utils";
 
 const depositFormSchema = z.object({
@@ -83,6 +83,7 @@ export default function DashboardWalletPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [depositSubmitted, setDepositSubmitted] = useState(false);
   const [depositMode, setDepositMode] = useState<"manual" | "online">("manual");
+  const [depositStep, setDepositStep] = useState<"method" | "details">("method");
 
   const walletQuery = useQuery({
     queryKey: ["wallet"],
@@ -263,6 +264,7 @@ export default function DashboardWalletPage() {
             className="justify-center rounded-full shadow-volt"
             onClick={() => {
               setDepositSubmitted(false);
+              setDepositStep("method");
               setActivePanel("deposit");
             }}
           >
@@ -344,6 +346,7 @@ export default function DashboardWalletPage() {
               className="rounded-full shadow-volt"
               onClick={() => {
                 setDepositSubmitted(false);
+                setDepositStep("method");
                 setActivePanel("deposit");
               }}
             >
@@ -419,6 +422,7 @@ export default function DashboardWalletPage() {
               className="mt-4 rounded-full"
               onClick={() => {
                 setDepositSubmitted(false);
+                setDepositStep("method");
                 setActivePanel("deposit");
               }}
             >
@@ -499,6 +503,7 @@ export default function DashboardWalletPage() {
           if (!open) {
             setActivePanel(null);
             setDepositSubmitted(false);
+            setDepositStep("method");
           }
         }}
       >
@@ -507,6 +512,7 @@ export default function DashboardWalletPage() {
           onClose={() => {
             setActivePanel(null);
             setDepositSubmitted(false);
+            setDepositStep("method");
           }}
         >
           <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-lift">
@@ -516,9 +522,21 @@ export default function DashboardWalletPage() {
                   <ArrowDownCircle className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <DialogTitle className="font-display text-2xl">Deposit</DialogTitle>
+                  <DialogTitle className="font-display text-2xl">
+                    {depositSubmitted
+                      ? "Submitted"
+                      : depositStep === "method"
+                        ? "Chagua Malipo"
+                        : depositMode === "online"
+                          ? "Online deposit"
+                          : "Manual deposit"}
+                  </DialogTitle>
                   <DialogDescription className="mt-1">
-                    Transfer or pay online.
+                    {depositSubmitted
+                      ? "Finance will confirm your transfer."
+                      : depositStep === "method"
+                        ? "Chagua jinsi unavyotaka kuweka fedha."
+                        : "Enter amount and complete the deposit."}
                   </DialogDescription>
                 </div>
               </div>
@@ -543,6 +561,7 @@ export default function DashboardWalletPage() {
                     size="sm"
                     onClick={() => {
                       setDepositSubmitted(false);
+                      setDepositStep("method");
                       setActivePanel(null);
                     }}
                   >
@@ -557,39 +576,49 @@ export default function DashboardWalletPage() {
                 </Alert>
               ) : !methods.manualEnabled && !methods.onlineEnabled ? (
                 <Alert variant="warning">Deposits are temporarily closed.</Alert>
+              ) : depositStep === "method" ? (
+                <div className="space-y-4">
+                  <div className="space-y-2.5">
+                    {methods.manualEnabled ? (
+                      <PaymentMethodCard
+                        active={depositMode === "manual"}
+                        iconSrc="/icons/3d/bank.png"
+                        iconAlt="Bank"
+                        title="Manual payment"
+                        subtitle="Lipa kwa benki au simu ya mkononi"
+                        onClick={() => setDepositMode("manual")}
+                      />
+                    ) : null}
+                    {methods.onlineEnabled ? (
+                      <PaymentMethodCard
+                        active={depositMode === "online"}
+                        iconSrc="/icons/3d/phone-pay.png"
+                        iconAlt="Online"
+                        title="Online payment"
+                        subtitle="Lipa kwa simu / checkout online"
+                        disabled={!methods.online?.available}
+                        onClick={() => setDepositMode("online")}
+                      />
+                    ) : null}
+                  </div>
+                  <Button
+                    className="h-12 w-full rounded-full text-base font-semibold shadow-volt"
+                    onClick={() => {
+                      if (depositMode === "manual" && !methods.manualEnabled) return;
+                      if (
+                        depositMode === "online" &&
+                        !(methods.onlineEnabled && methods.online?.available)
+                      ) {
+                        return;
+                      }
+                      setDepositStep("details");
+                    }}
+                  >
+                    Endelea
+                  </Button>
+                </div>
               ) : (
                 <>
-                  {methods.manualEnabled && methods.onlineEnabled ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDepositMode("manual")}
-                        className={cn(
-                          "flex items-center justify-center gap-2 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-colors",
-                          depositMode === "manual"
-                            ? "border-volt/50 bg-volt/10"
-                            : "border-border bg-surface",
-                        )}
-                      >
-                        <Smartphone className="h-4 w-4 text-volt-dim" />
-                        Transfer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDepositMode("online")}
-                        className={cn(
-                          "flex items-center justify-center gap-2 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-colors",
-                          depositMode === "online"
-                            ? "border-volt/50 bg-volt/10"
-                            : "border-border bg-surface",
-                        )}
-                      >
-                        <Globe className="h-4 w-4 text-volt-dim" />
-                        Online
-                      </button>
-                    </div>
-                  ) : null}
-
                   {depositMode === "online" && methods.onlineEnabled ? (
                     <form
                       className="space-y-4 rounded-2xl border border-border bg-surface-2/40 p-4"
@@ -625,16 +654,18 @@ export default function DashboardWalletPage() {
                       <p className="text-xs text-muted-foreground">
                         Min {formatMoney(methods.minDeposit)}
                       </p>
-                      <Button
-                        type="submit"
-                        variant="primary"
-                        className="h-11 w-full rounded-full shadow-volt"
-                        disabled={
-                          onlineDepositMutation.isPending || !methods.online?.available
-                        }
-                      >
-                        {onlineDepositMutation.isPending ? "Starting…" : "Continue"}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="submit"
+                          variant="primary"
+                          className="h-11 flex-1 rounded-full shadow-volt"
+                          disabled={
+                            onlineDepositMutation.isPending || !methods.online?.available
+                          }
+                        >
+                          {onlineDepositMutation.isPending ? "Starting…" : "Continue to pay"}
+                        </Button>
+                      </div>
                       {onlineDepositMutation.error ? (
                         <Alert variant="danger">
                           {apiErrorMessage(onlineDepositMutation.error, "Could not start deposit")}
@@ -798,6 +829,15 @@ export default function DashboardWalletPage() {
                       </div>
                     )
                   ) : null}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => setDepositStep("method")}
+                  >
+                    Back
+                  </Button>
                 </>
               )}
             </div>

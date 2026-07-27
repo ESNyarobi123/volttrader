@@ -85,6 +85,19 @@ export class CoursesService {
       }
     }
 
+    let completedIds = new Set<string>();
+    if (enrolled && userId) {
+      const progress = await this.prisma.lessonProgress.findMany({
+        where: {
+          userId,
+          completed: true,
+          lesson: { courseId: course.id },
+        },
+        select: { lessonId: true },
+      });
+      completedIds = new Set(progress.map((p) => p.lessonId));
+    }
+
     const lessons: LessonSummary[] = course.lessons.map((lesson) => {
       const locked = !lesson.isPreview && !enrolled && !hasPlanAccess;
       return {
@@ -96,6 +109,7 @@ export class CoursesService {
         locked,
         hasVideo: Boolean(lesson.videoKey),
         content: locked ? null : lesson.content,
+        completed: completedIds.has(lesson.id),
       };
     });
 

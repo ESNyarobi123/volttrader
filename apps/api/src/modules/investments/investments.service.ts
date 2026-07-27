@@ -7,18 +7,27 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { randomUUID } from "node:crypto";
-import type { Investment, Opportunity, Payment } from "@prisma/client";
-import type { CreateInvestmentInput } from "@volt/validation";
-import type { InvestmentView, PaymentView, PortfolioSummary } from "@volt/types";
+import type { Investment, InvestmentUpdate, Opportunity, Payment, User } from "@prisma/client";
+import type { CreateInvestmentInput, InvestmentUpdateInput } from "@volt/validation";
+import type {
+  InvestmentUpdateView,
+  InvestmentView,
+  PaymentView,
+  PortfolioSummary,
+} from "@volt/types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { AuditService } from "../audit/audit.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { GatewayRegistry } from "../payments/gateways/gateway.registry";
 import { PlanAccessService } from "../plan-access/plan-access.service";
 import { toOpportunitySummary } from "../opportunities/opportunity.mapper";
 import { applyMultiplier, toMoney } from "../../common/money";
 
-type InvestmentWithOpportunity = Investment & { opportunity: Opportunity };
+type InvestmentWithOpportunity = Investment & {
+  opportunity: Opportunity;
+  updates?: Array<InvestmentUpdate & { author?: Pick<User, "fullName"> }>;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -28,12 +37,40 @@ export class InvestmentsService {
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
     private readonly gateways: GatewayRegistry,
     private readonly config: ConfigService,
     private readonly planAccess: PlanAccessService,
   ) {}
 
+  private cycleProgress(createdAt: Date, maturesAt: Date | null, status: Investment["status"]): number {
+    if (status === "SETTLED") return 100;
+    if (status === "PENDING" || !maturesAt) return 0;
+    const start = createdAt.getTime();
+    const end = maturesAt.getTime();
+    if (end <= start) return 100;
+    const pct = Math.round(((Date.now() - start) / (end - start)) * 100);
+    return Math.max(0, Math.min(100, pct));
+  }
+
+  private toUpdateView(
+    u: InvestmentUpdate & { author?: Pick<User, "fullName"> },
+  ): InvestmentUpdateView {
+    return {
+      id: u.id,
+      title: u.title,
+      body: u.body,
+      createdAt: u.createdAt.toISOString(),
+      authorName: u.author?.fullName ?? "Volt team",
+    };
+  }
+
   private toView(inv: InvestmentWithOpportunity): InvestmentView {
+    const awaitingSettlement =
+      inv.status === "ACTIVE" &&
+      inv.maturesAt !== null &&
+      inv.maturesAt.getTime() <= Date.now();
+
     return {
       id: inv.id,
       opportunity: toOpportunitySummary(inv.opportunity),
@@ -42,7 +79,12 @@ export class InvestmentsService {
       status: inv.status,
       createdAt: inv.createdAt.toISOString(),
       maturesAt: inv.maturesAt ? inv.maturesAt.toISOString() : null,
+      settledAt: inv.settledAt ? inv.settledAt.toISOString() : null,
       settledValue: inv.settledValue !== null ? toMoney(inv.settledValue, inv.currency) : null,
+      reference: inv.reference,
+      cycleProgressPercent: this.cycleProgress(inv.createdAt, inv.maturesAt, inv.status),
+      awaitingSettlement,
+      updates: (inv.updates ?? []).map((u) => this.toUpdateView(u)),
     };
   }
 
@@ -175,6 +217,81 @@ export class InvestmentsService {
       return this.toView(investment);
     }
 
+    if (input.source === "MANUAL") {
+      const settings = await this.prisma.platformSettings.findUnique({ where: { id: "default" } });
+      if (!settings?.depositManualEnabled) {
+        throw new BadRequestException("Manual payments are disabled by admin");
+      }
+      if (input.channel === "MOBILE_MONEY" && !settings.depositMobileNumber) {
+        throw new BadRequestException("Mobile money is not configured yet");
+      }
+      if (input.channel === "BANK_TRANSFER" && !settings.depositBankAccount) {
+        throw new BadRequestException("Bank transfer is not configured yet");
+      }
+
+      const paymentReference = `PAY-${input.idempotencyKey ?? randomUUID()}`;
+      const result = await this.prisma.$transaction(async (tx) => {
+        const investment = await tx.investment.create({
+          data: {
+            userId,
+            opportunityId: opportunity.id,
+            principalAmount: amount,
+            currency,
+            multiplierSnapshot: opportunity.projectionMultiplier,
+            projectedValue,
+            status: "PENDING",
+            reference,
+          },
+          include: { opportunity: true },
+        });
+        const payment = await tx.payment.create({
+          data: {
+            userId,
+            type: "INVESTMENT_FUNDING",
+            status: "UNDER_REVIEW",
+            amount,
+            currency,
+            gateway: "manual",
+            reference: paymentReference,
+            idempotencyKey: input.idempotencyKey ?? null,
+            opportunityId: opportunity.id,
+            metadata: {
+              investmentId: investment.id,
+              channel: input.channel,
+              payerReference: input.payerReference?.trim(),
+              submittedAt: new Date().toISOString(),
+            },
+          },
+        });
+        const linked = await tx.investment.update({
+          where: { id: investment.id },
+          data: { paymentId: payment.id },
+          include: { opportunity: true },
+        });
+        return { investment: linked, payment };
+      });
+
+      await this.audit.log({
+        actorId: userId,
+        action: "investment.manual_submitted",
+        entityType: "Investment",
+        entityId: result.investment.id,
+        ip,
+        metadata: {
+          source: "MANUAL",
+          opportunityId: opportunity.id,
+          amount: input.amount,
+          channel: input.channel,
+          paymentId: result.payment.id,
+        },
+      });
+
+      return {
+        investment: this.toView(result.investment),
+        payment: this.toPaymentView(result.payment),
+      };
+    }
+
     // source === PAYMENT — funding via a fresh payment intent (confirmed by webhook).
     const paymentReference = `PAY-${input.idempotencyKey ?? randomUUID()}`;
     const gateway = this.gateways.resolve();
@@ -248,13 +365,78 @@ export class InvestmentsService {
   async getMine(userId: string, id: string): Promise<InvestmentView> {
     const investment = await this.prisma.investment.findUnique({
       where: { id },
-      include: { opportunity: true },
+      include: {
+        opportunity: true,
+        updates: {
+          orderBy: { createdAt: "desc" },
+          include: { author: { select: { fullName: true } } },
+        },
+      },
     });
     if (!investment) throw new NotFoundException("Investment not found");
     if (investment.userId !== userId) {
       throw new ForbiddenException("You do not have access to this investment");
     }
     return this.toView(investment);
+  }
+
+  /** Admin — fetch one position (includes cycle updates). */
+  async getAdmin(id: string): Promise<InvestmentView & { user: { id: string; fullName: string; email: string | null } }> {
+    const investment = await this.prisma.investment.findUnique({
+      where: { id },
+      include: {
+        opportunity: true,
+        user: { select: { id: true, fullName: true, email: true } },
+        updates: {
+          orderBy: { createdAt: "desc" },
+          include: { author: { select: { fullName: true } } },
+        },
+      },
+    });
+    if (!investment) throw new NotFoundException("Investment not found");
+    return { ...this.toView(investment), user: investment.user };
+  }
+
+  /** Finance posts a cycle note — visible on the member position page. Not P&L. */
+  async addUpdate(
+    investmentId: string,
+    input: InvestmentUpdateInput,
+    actorId: string,
+    ip?: string,
+  ): Promise<InvestmentUpdateView> {
+    const investment = await this.prisma.investment.findUnique({
+      where: { id: investmentId },
+      include: { opportunity: true },
+    });
+    if (!investment) throw new NotFoundException("Investment not found");
+
+    const update = await this.prisma.investmentUpdate.create({
+      data: {
+        investmentId,
+        authorId: actorId,
+        title: input.title.trim(),
+        body: input.body.trim(),
+      },
+      include: { author: { select: { fullName: true } } },
+    });
+
+    await this.audit.log({
+      actorId,
+      action: "investment.update_posted",
+      entityType: "Investment",
+      entityId: investmentId,
+      ip,
+      metadata: { updateId: update.id, title: update.title },
+    });
+
+    await this.notifications.create({
+      userId: investment.userId,
+      type: "SYSTEM",
+      title: `Update on ${investment.opportunity.name}`,
+      body: update.title,
+    });
+
+    return this.toUpdateView(update);
   }
 
   async listMine(userId: string): Promise<InvestmentView[]> {

@@ -3,14 +3,14 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Refund Policy",
-  description: "How refunds work for Volt Trades courses, deposits, and investments.",
+  description: "How refunds work for Mandanda Space courses, deposits, and investments.",
 };
 
 const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: "1. Overview",
     body: [
-      "This Refund Policy explains when Volt Trades may refund payments for courses, wallet deposits, or related services. It should be read together with our Terms of Service and Risk Disclosure.",
+      "This Refund Policy explains when Mandanda Space may refund payments for courses, wallet deposits, or related services. It should be read together with our Terms of Service and Risk Disclosure.",
       "Investment outcomes are never guaranteed. Capital allocated to Trading Floor opportunities is subject to market and product risk and is not covered by a general “cooling-off” refund of projected returns.",
     ],
   },
@@ -58,7 +58,7 @@ export default function RefundPolicyPage() {
       <div className="mx-auto max-w-3xl">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Refund Policy</h1>
         <p className="mt-3 text-muted-foreground">
-          Last updated for the Volt Trades platform. See also{" "}
+          Last updated for the Mandanda Space platform. See also{" "}
           <Link href="/terms" className="font-medium text-volt-dim hover:underline">
             Terms
           </Link>

@@ -167,9 +167,33 @@ export type CourseUpsertInput = z.infer<typeof courseUpsertSchema>;
 
 export const coursePlanSubscribeSchema = strictObject({
   coursePlanId: z.string().min(1),
-  source: z.enum(["WALLET", "PAYMENT"]).default("WALLET"),
+  source: z.enum(["WALLET", "PAYMENT", "MANUAL"]).default("WALLET"),
   gateway: z.string().min(1).max(40).optional(),
+  /** Manual transfer channel (required when source=MANUAL). */
+  channel: z.enum(["MOBILE_MONEY", "BANK_TRANSFER"]).optional(),
+  /** Transfer reference / confirmation code (required when source=MANUAL). */
+  payerReference: z.string().min(3).max(120).optional(),
+  /** Phone for online checkout / push (optional). */
+  phone: z
+    .string()
+    .min(9)
+    .max(20)
+    .regex(/^\+?[0-9\s-]+$/, "Enter a valid phone number")
+    .optional(),
   idempotencyKey: z.string().uuid().optional(),
+}).superRefine((val, ctx) => {
+  if (val.source === "MANUAL") {
+    if (!val.channel) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Channel is required", path: ["channel"] });
+    }
+    if (!val.payerReference || val.payerReference.trim().length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Payment reference is required",
+        path: ["payerReference"],
+      });
+    }
+  }
 });
 export type CoursePlanSubscribeInput = z.infer<typeof coursePlanSubscribeSchema>;
 
@@ -265,14 +289,37 @@ export type OpportunityUpsertInput = z.infer<typeof opportunityUpsertSchema>;
 export const createInvestmentSchema = strictObject({
   opportunityId: z.string(),
   amount: z.number().int().positive(),
-  /** funding source: wallet balance or a fresh payment intent */
-  source: z.enum(["WALLET", "PAYMENT"]).default("WALLET"),
+  /** funding source: wallet, online gateway, or manual bank/MM transfer */
+  source: z.enum(["WALLET", "PAYMENT", "MANUAL"]).default("WALLET"),
   acceptedRisk: z.literal(true, {
     errorMap: () => ({ message: "You must accept the risk disclosure" }),
   }),
+  /** Manual transfer channel (required when source=MANUAL). */
+  channel: z.enum(["MOBILE_MONEY", "BANK_TRANSFER"]).optional(),
+  /** Transfer reference / confirmation code (required when source=MANUAL). */
+  payerReference: z.string().min(3).max(120).optional(),
   idempotencyKey: z.string().uuid().optional(),
+}).superRefine((val, ctx) => {
+  if (val.source === "MANUAL") {
+    if (!val.channel) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Channel is required", path: ["channel"] });
+    }
+    if (!val.payerReference || val.payerReference.trim().length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Payment reference is required",
+        path: ["payerReference"],
+      });
+    }
+  }
 });
 export type CreateInvestmentInput = z.infer<typeof createInvestmentSchema>;
+
+export const investmentUpdateSchema = strictObject({
+  title: z.string().min(3).max(120),
+  body: z.string().min(3).max(4000),
+});
+export type InvestmentUpdateInput = z.infer<typeof investmentUpdateSchema>;
 
 // ---------------------------------------------------------------------------
 // Wallet / Payments / Withdrawals

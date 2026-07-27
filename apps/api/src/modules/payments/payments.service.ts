@@ -214,10 +214,14 @@ export class PaymentsService {
     const existing = await this.prisma.payment.findUnique({ where: { id: paymentId } });
     if (!existing) throw new NotFoundException("Payment not found");
     if (existing.gateway !== "manual") {
-      throw new BadRequestException("Only manual deposits can be confirmed this way");
+      throw new BadRequestException("Only manual payments can be confirmed this way");
     }
-    if (existing.type !== "WALLET_DEPOSIT") {
-      throw new BadRequestException("Only wallet deposits can be confirmed manually");
+    if (
+      existing.type !== "WALLET_DEPOSIT" &&
+      existing.type !== "COURSE_PLAN_PURCHASE" &&
+      existing.type !== "INVESTMENT_FUNDING"
+    ) {
+      throw new BadRequestException("This payment type cannot be confirmed manually");
     }
     if (existing.status === "PAID") return this.toView(existing);
     if (!["UNDER_REVIEW", "PENDING"].includes(existing.status)) {
@@ -233,9 +237,28 @@ export class PaymentsService {
 
     const updated = await this.prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
 
+    const notifyCopy =
+      updated.type === "COURSE_PLAN_PURCHASE"
+        ? {
+            action: "payment.manual_course_plan_confirmed" as const,
+            title: "Plan payment confirmed",
+            body: `Your Forex plan payment of ${Number(updated.amount)} ${updated.currency} was confirmed. Your courses are unlocked.`,
+          }
+        : updated.type === "INVESTMENT_FUNDING"
+          ? {
+              action: "payment.manual_investment_confirmed" as const,
+              title: "Investment payment confirmed",
+              body: `Your investment funding of ${Number(updated.amount)} ${updated.currency} was confirmed. Your plan is now active.`,
+            }
+          : {
+              action: "payment.manual_deposit_confirmed" as const,
+              title: "Deposit confirmed",
+              body: `Your deposit of ${Number(updated.amount)} ${updated.currency} was confirmed and credited to your wallet.`,
+            };
+
     await this.audit.log({
       actorId,
-      action: "payment.manual_deposit_confirmed",
+      action: notifyCopy.action,
       entityType: "Payment",
       entityId: paymentId,
       ip,
@@ -243,15 +266,11 @@ export class PaymentsService {
         amount: Number(updated.amount),
         currency: updated.currency,
         userId: updated.userId,
+        type: updated.type,
       },
     });
 
-    await this.notify(
-      updated.userId,
-      "PAYMENT",
-      "Deposit confirmed",
-      `Your deposit of ${Number(updated.amount)} ${updated.currency} was confirmed and credited to your wallet.`,
-    );
+    await this.notify(updated.userId, "PAYMENT", notifyCopy.title, notifyCopy.body);
 
     return this.toView(updated);
   }

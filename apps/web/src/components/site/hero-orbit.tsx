@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
 import {
   GraduationCap,
@@ -8,8 +9,8 @@ import {
   Users,
   ShieldCheck,
   Sparkles,
-  Zap,
 } from "lucide-react";
+import { BRAND_ICON_3D } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 type Floater =
@@ -126,20 +127,27 @@ export function HeroOrbit({ className }: { className?: string }) {
         <div className="-mt-1 h-3 w-[64%] rounded-[100%] bg-[radial-gradient(ellipse_at_center,hsl(350_73%_44%/0.35),transparent_70%)] blur-md" />
       </div>
 
-      {/* Central Volt “coin” */}
+      {/* Central Mandanda Space mark */}
       <div className="absolute left-1/2 top-[38%] z-10 -translate-x-1/2 -translate-y-1/2">
         <div className="volt-float relative">
           <div className="absolute -inset-6 rounded-full bg-[radial-gradient(circle,hsl(350_73%_44%/0.35),transparent_68%)] blur-md" />
           <div className="relative grid h-[9.5rem] w-[9.5rem] place-items-center rounded-[2rem] bg-gradient-to-br from-volt via-[hsl(350_73%_44%)] to-[hsl(351_77%_61%)] text-volt-foreground shadow-[0_28px_60px_-24px_hsl(349_74%_28%/0.75)] sm:h-44 sm:w-44 sm:rounded-[2.25rem]">
             <div className="absolute inset-[10px] rounded-[1.55rem] border border-white/35 sm:inset-3 sm:rounded-[1.75rem]" />
             <div className="absolute inset-[18px] rounded-[1.35rem] bg-gradient-to-br from-white/25 via-transparent to-black/10 sm:inset-5 sm:rounded-[1.5rem]" />
-            <div className="relative flex flex-col items-center gap-1">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/20 backdrop-blur-sm sm:h-14 sm:w-14">
-                <Zap className="h-7 w-7 sm:h-8 sm:w-8" />
+            <div className="relative flex flex-col items-center gap-1.5 px-3 text-center">
+              <span className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl bg-white shadow-lg sm:h-16 sm:w-16">
+                <Image
+                  src={BRAND_ICON_3D}
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-[85%] w-[85%] object-contain"
+                  priority
+                />
               </span>
-              <span className="text-sm font-bold tracking-[0.22em] sm:text-base">VOLT</span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-volt-foreground/70">
-                Trades
+              <span className="text-xs font-bold tracking-wide sm:text-sm">Mandanda</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-volt-foreground/75">
+                Space
               </span>
             </div>
           </div>

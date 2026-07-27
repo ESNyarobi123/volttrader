@@ -31,7 +31,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="relative z-10 w-full max-w-[420px]">{children}</div>
 
       <p className="relative z-10 mt-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Volt Trades. All rights reserved.{" "}
+        © {new Date().getFullYear()} Mandanda Space. All rights reserved.{" "}
         <Link href="/risk-disclosure" className="underline-offset-2 hover:underline">
           Risk disclosure
         </Link>

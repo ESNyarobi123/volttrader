@@ -397,7 +397,7 @@ export default function AdminSettingsPage() {
                 id="depositMobileName"
                 value={form.depositMobileName}
                 onChange={(e) => setForm({ ...form, depositMobileName: e.target.value })}
-                placeholder="Volt Trades Ltd"
+                placeholder="Mandanda Space Ltd"
               />
             </Field>
             <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -424,7 +424,7 @@ export default function AdminSettingsPage() {
                 id="depositBankAccountName"
                 value={form.depositBankAccountName}
                 onChange={(e) => setForm({ ...form, depositBankAccountName: e.target.value })}
-                placeholder="Volt Trades Ltd"
+                placeholder="Mandanda Space Ltd"
               />
             </Field>
             <Field label="Instructions for members" htmlFor="depositInstructions">

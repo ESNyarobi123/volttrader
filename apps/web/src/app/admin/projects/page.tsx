@@ -445,7 +445,7 @@ export default function AdminProjectsPage() {
                     {editingId ? "Edit project" : "Create project"}
                   </DialogTitle>
                   <DialogDescription className="mt-1">
-                    Shape what Volt Trades is building next.
+                    Shape what Mandanda Space is building next.
                   </DialogDescription>
                 </div>
               </div>

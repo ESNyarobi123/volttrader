@@ -65,7 +65,7 @@ export default function ContactPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
-    document.title = "Contact · Volt Trades";
+    document.title = "Contact · Mandanda Space";
   }, []);
 
   const {
@@ -90,7 +90,7 @@ export default function ContactPage() {
       <div className="mx-auto max-w-2xl text-center">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Contact us</h1>
         <p className="mt-4 text-base text-muted-foreground">
-          Have a question about Volt Trades? Send us a message or reach out through one of the channels below.
+          Have a question about Mandanda Space? Send us a message or reach out through one of the channels below.
         </p>
       </div>
 

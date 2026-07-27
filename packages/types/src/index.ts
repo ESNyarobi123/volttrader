@@ -197,6 +197,8 @@ export interface LessonSummary {
   /** Present when unlocked and lesson has text content. */
   content?: string | null;
   hasVideo?: boolean;
+  /** True when the enrolled learner marked this lesson complete. */
+  completed?: boolean;
 }
 
 export interface EnrollmentView {
@@ -302,6 +304,14 @@ export interface InvestmentPlanMembershipView {
   plans: InvestmentPlanCatalogItem[];
 }
 
+export interface InvestmentUpdateView {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  authorName: string;
+}
+
 export interface InvestmentView {
   id: string;
   opportunity: OpportunitySummary;
@@ -310,7 +320,14 @@ export interface InvestmentView {
   status: InvestmentStatus;
   createdAt: string;
   maturesAt: string | null;
+  settledAt: string | null;
   settledValue: Money | null;
+  reference: string;
+  /** 0–100 time progress through the management cycle (not P&L). */
+  cycleProgressPercent: number;
+  /** True when past maturesAt but not yet settled. */
+  awaitingSettlement: boolean;
+  updates: InvestmentUpdateView[];
 }
 
 export interface PortfolioSummary {

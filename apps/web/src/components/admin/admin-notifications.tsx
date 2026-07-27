@@ -14,7 +14,7 @@ import {
   Wallet,
   LifeBuoy,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 
@@ -95,13 +95,21 @@ export function AdminNotifications() {
   const inboxQuery = useQuery({
     queryKey: ["notifications", "me"],
     queryFn: () => api.get<InboxNotification[]>("/notifications/me"),
-    refetchInterval: 30_000,
+    refetchInterval: (q) => (q.state.error ? false : 30_000),
+    retry: (count, err) => {
+      if (err instanceof ApiRequestError && err.status === 401) return false;
+      return count < 2;
+    },
   });
 
   const alertsQuery = useQuery({
     queryKey: ["admin-alerts"],
     queryFn: () => api.get<AlertsResponse>("/admin/alerts"),
-    refetchInterval: 20_000,
+    refetchInterval: (q) => (q.state.error ? false : 20_000),
+    retry: (count, err) => {
+      if (err instanceof ApiRequestError && err.status === 401) return false;
+      return count < 2;
+    },
   });
 
   const markRead = useMutation({

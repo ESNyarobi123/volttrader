@@ -1,23 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 
 const DEFAULT_YOUTUBE_ID = "nMzMlm-F_yA";
 
+function prefersMobileAutoplayMute() {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const mobileUa = /iPhone|iPad|iPod|Android/i.test(ua);
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+  // iOS / Android browsers block unmuted autoplay; mute first so the video still starts.
+  return mobileUa || coarse;
+}
+
 function embedSrc(youtubeId: string, muted: boolean) {
-  /** Autoplay works reliably when muted; sound starts after a tap (browser policy). */
+  const origin =
+    typeof window !== "undefined" ? encodeURIComponent(window.location.origin) : "";
   return (
     `https://www.youtube-nocookie.com/embed/${youtubeId}` +
     `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${youtubeId}` +
     `&controls=0&modestbranding=1&rel=0&playsinline=1` +
-    `&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0`
+    `&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0` +
+    `&enablejsapi=1${origin ? `&origin=${origin}` : ""}`
   );
 }
 
+/**
+ * Hero intro video.
+ * - Desktop: sound ON by default (unmuted autoplay usually allowed).
+ * - Mobile: muted autoplay first (browser policy), then sound turns ON on the
+ *   first tap/scroll/key — unless the user already muted intentionally.
+ */
 export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: string }) {
   const id = youtubeId.trim() || DEFAULT_YOUTUBE_ID;
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
+  const userChoseMute = useRef(false);
+  const autoUnmuted = useRef(false);
+  const bootstrapped = useRef(false);
+
+  useEffect(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+
+    if (!prefersMobileAutoplayMute()) {
+      // Desktop / large screens — keep sound on.
+      setMuted(false);
+      return;
+    }
+
+    // Mobile: start muted so autoplay is allowed, then enable sound on first gesture.
+    setMuted(true);
+
+    const enableSound = () => {
+      if (autoUnmuted.current || userChoseMute.current) return;
+      autoUnmuted.current = true;
+      setMuted(false);
+      remove();
+    };
+
+    const remove = () => {
+      window.removeEventListener("pointerdown", enableSound);
+      window.removeEventListener("touchstart", enableSound);
+      window.removeEventListener("keydown", enableSound);
+      window.removeEventListener("scroll", enableSound, true);
+    };
+
+    window.addEventListener("pointerdown", enableSound, { once: true, passive: true });
+    window.addEventListener("touchstart", enableSound, { once: true, passive: true });
+    window.addEventListener("keydown", enableSound, { once: true });
+    window.addEventListener("scroll", enableSound, { once: true, passive: true, capture: true });
+
+    return remove;
+  }, []);
+
+  const toggleMute = () => {
+    setMuted((prev) => {
+      const next = !prev;
+      // If user turns sound off, don't auto-unmute again.
+      userChoseMute.current = next;
+      if (!next) autoUnmuted.current = true;
+      return next;
+    });
+  };
 
   return (
     <div className="relative mx-auto w-full min-w-0 max-w-full overflow-hidden px-1 sm:px-2 lg:max-w-none">
@@ -53,7 +118,7 @@ export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: stri
           <div className="relative aspect-video w-full max-w-full overflow-hidden">
             <iframe
               key={`${id}-${muted ? "m" : "u"}`}
-              title="Volt Trades intro"
+              title="Mandanda Space intro"
               src={embedSrc(id, muted)}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen={false}
@@ -73,14 +138,14 @@ export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: stri
 
             <button
               type="button"
-              onClick={() => setMuted((v) => !v)}
+              onClick={toggleMute}
               className="absolute bottom-3 right-3 z-30 inline-flex items-center gap-2 rounded-full border border-white/20 bg-ink/80 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur transition hover:bg-ink sm:bottom-4 sm:right-4"
               aria-label={muted ? "Turn sound on" : "Mute video"}
             >
               {muted ? (
                 <>
                   <VolumeX className="h-4 w-4 text-volt" aria-hidden />
-                  Tap for sound
+                  Sound off · tap on
                 </>
               ) : (
                 <>
@@ -94,7 +159,7 @@ export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: stri
           <div className="relative flex min-w-0 items-center justify-between gap-2 border-t border-white/10 bg-gradient-to-r from-[hsl(0_0%_10%)] via-[hsl(0_0%_12%)] to-[hsl(350_30%_14%)] px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold tracking-wide text-white/90">
-                Volt Trades
+                Mandanda Space
               </p>
               <p className="truncate text-[11px] text-white/50">Learn · Invest · Build</p>
             </div>

@@ -15,7 +15,7 @@ const VALUES = [
   {
     icon: Users2,
     title: "Members first",
-    description: "Volt Society is built around the people learning and investing with Volt Trades, not around hype.",
+    description: "Volt Society is built around the people learning and investing with Mandanda Space, not around hype.",
   },
   {
     icon: Handshake,
@@ -33,14 +33,14 @@ const BENEFITS = [
   "Early access to new Forex Academy courses and materials",
   "Invitations to community sessions and market discussions",
   "Priority updates on new Trading Floor opportunities and Volt Projects",
-  "A voice in shaping future Volt Trades initiatives",
+  "A voice in shaping future Mandanda Space initiatives",
 ];
 
 export default function VoltSocietyPage() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    document.title = "Volt Society · Volt Trades";
+    document.title = "Volt Society · Mandanda Space";
   }, []);
 
   const joinMutation = useMutation({

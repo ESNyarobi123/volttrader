@@ -65,7 +65,7 @@ export default function ProjectsPage() {
             Projects &amp; Roadmap
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            The ventures and initiatives Volt Trades is building beyond the trading floor — see
+            The ventures and initiatives Mandanda Space is building beyond the trading floor — see
             what&apos;s live, in progress, and coming next.
           </p>
         </header>
@@ -136,7 +136,7 @@ export default function ProjectsPage() {
               description={
                 data?.length
                   ? "Try another status filter to see more of the roadmap."
-                  : "Volt Trades is building — check back soon for updates on our roadmap."
+                  : "Mandanda Space is building — check back soon for updates on our roadmap."
               }
             />
           )}

@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "The mission, vision, and values behind Volt Trades.",
+  description: "The mission, vision, and values behind Mandanda Space.",
 };
 
 const PILLARS: {
@@ -124,10 +124,10 @@ export default function AboutPage() {
             LEARN · INVEST · BUILD
           </p>
           <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-4xl lg:text-[2.85rem]">
-            About Volt Trades
+            About Mandanda Space
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-lg">
-            Volt Trades is a modular ecosystem for learning Forex, managing capital, and exploring
+            Mandanda Space is a modular ecosystem for learning Forex, managing capital, and exploring
             curated investment opportunities — built for members who want clarity, not noise.
           </p>
         </div>
@@ -227,7 +227,7 @@ export default function AboutPage() {
                 Built to close the gap between learning and capital
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
-                Volt Trades started from a simple observation — and grew into a modular platform
+                Mandanda Space started from a simple observation — and grew into a modular platform
                 designed for members who want discipline over hype.
               </p>
               <Link

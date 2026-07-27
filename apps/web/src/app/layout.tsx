@@ -22,11 +22,11 @@ const display = Sora({
 
 export const metadata: Metadata = {
   title: {
-    default: "Volt Trades — Learn Forex. Invest. Build.",
-    template: "%s · Volt Trades",
+    default: "Mandanda Space — Learn Forex. Invest. Build.",
+    template: "%s · Mandanda Space",
   },
   description:
-    "Learn Forex, manage your capital, explore investment opportunities and build the future with Volt Trades.",
+    "Learn Forex, manage your capital, explore investment opportunities and build the future with Mandanda Space.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },

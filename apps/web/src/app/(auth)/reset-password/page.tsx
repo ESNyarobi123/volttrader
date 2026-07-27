@@ -70,7 +70,7 @@ function ResetPasswordForm() {
           Set a new password
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Choose a strong password for your Volt Trades account.
+          Choose a strong password for your Mandanda Space account.
         </p>
       </div>
 

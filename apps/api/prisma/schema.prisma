@@ -229,6 +229,7 @@ model User {
   quizResults                 QuizResult[]
   certificates                Certificate[]
   investments                 Investment[]
+  investmentUpdatesAuthored   InvestmentUpdate[] @relation("InvestmentUpdateAuthor")
   payments                    Payment[]
   withdrawals                 Withdrawal[]
   ledgerEntries               LedgerEntry[]
@@ -603,10 +604,28 @@ model Investment {
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
+  updates InvestmentUpdate[]
+
   @@index([userId])
   @@index([opportunityId])
   @@index([status])
   @@map("investments")
+}
+
+/// Admin/finance cycle notes shown on the member position page (not live P&L).
+model InvestmentUpdate {
+  id           String     @id @default(cuid())
+  investmentId String     @map("investment_id")
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  authorId     String     @map("author_id")
+  author       User       @relation("InvestmentUpdateAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  /// Short headline, e.g. "Week 1 cycle note"
+  title        String
+  body         String
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([investmentId, createdAt])
+  @@map("investment_updates")
 }
 
 // ===========================================================================

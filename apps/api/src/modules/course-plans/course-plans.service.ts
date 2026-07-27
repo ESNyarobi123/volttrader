@@ -336,7 +336,66 @@ export class CoursePlansService {
       };
     }
 
+    if (input.source === "MANUAL") {
+      const settings = await this.prisma.platformSettings.findUnique({ where: { id: "default" } });
+      if (!settings?.depositManualEnabled) {
+        throw new BadRequestException("Manual payments are disabled by admin");
+      }
+      if (input.channel === "MOBILE_MONEY" && !settings.depositMobileNumber) {
+        throw new BadRequestException("Mobile money is not configured yet");
+      }
+      if (input.channel === "BANK_TRANSFER" && !settings.depositBankAccount) {
+        throw new BadRequestException("Bank transfer is not configured yet");
+      }
+
+      const payment = await this.prisma.payment.create({
+        data: {
+          userId,
+          type: "COURSE_PLAN_PURCHASE",
+          status: "UNDER_REVIEW",
+          amount,
+          currency,
+          gateway: "manual",
+          reference,
+          idempotencyKey: input.idempotencyKey ?? null,
+          coursePlanId: plan.id,
+          metadata: {
+            channel: input.channel,
+            payerReference: input.payerReference?.trim(),
+            submittedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      await this.audit.log({
+        actorId: userId,
+        action: "course_plan.manual_submitted",
+        entityType: "CoursePlan",
+        entityId: plan.id,
+        ip,
+        metadata: {
+          paymentId: payment.id,
+          channel: input.channel,
+          amount: Number(amount),
+        },
+      });
+
+      return {
+        plan: this.toView(plan),
+        payment: {
+          id: payment.id,
+          status: payment.status,
+          amount: Number(payment.amount),
+          currency: payment.currency,
+        },
+        checkoutUrl: null,
+        enrolledCourseCount: 0,
+      };
+    }
+
     // Gateway checkout — membership activates on verified webhook.
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("User not found");
     const gateway = this.gateways.resolve(input.gateway);
     const payment = await this.prisma.payment.create({
       data: {
@@ -349,6 +408,7 @@ export class CoursePlansService {
         reference,
         idempotencyKey: input.idempotencyKey ?? null,
         coursePlanId: plan.id,
+        metadata: input.phone ? { phone: input.phone.trim() } : undefined,
       },
     });
     const intent = await gateway.createIntent({
@@ -358,6 +418,11 @@ export class CoursePlansService {
       reference,
       type: "COURSE_PLAN_PURCHASE",
       metadata: { coursePlanId: plan.id },
+      customer: {
+        email: user.email,
+        name: user.fullName,
+        phone: input.phone?.trim() || user.phone,
+      },
     });
     const updated = await this.prisma.payment.update({
       where: { id: payment.id },

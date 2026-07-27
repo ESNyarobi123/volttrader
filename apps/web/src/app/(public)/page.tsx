@@ -17,7 +17,7 @@ const FALLBACK: LandingPageView = {
   heroHeadline: "Learn Forex. Manage capital.",
   heroHeadlineAccent: "Explore opportunities.",
   heroSubcopy:
-    "Volt Trades brings education, wallet, and curated trading opportunities into one simple ecosystem — powerful inside, clear outside.",
+    "Mandanda Space brings education, wallet, and curated trading opportunities into one simple ecosystem — powerful inside, clear outside.",
   ctaPrimaryLabel: "Sign up free",
   ctaPrimaryHref: "/register",
   ctaSecondaryLabel: "Sign in",
@@ -28,7 +28,7 @@ const FALLBACK: LandingPageView = {
     { value: "Wallet", label: "Wallet balance" },
     { value: "Society", label: "Volt community" },
   ],
-  closingHeadline: "Ready to learn, invest, and build with Volt Trades?",
+  closingHeadline: "Ready to learn, invest, and build with Mandanda Space?",
   closingSubcopy:
     "Create your free account in minutes — no upfront KYC required to get started.",
   closingCtaLabel: "Create your account",

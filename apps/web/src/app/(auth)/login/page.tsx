@@ -72,7 +72,7 @@ function LoginForm() {
           Welcome back!
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Sign in to your Volt Trades account
+          Sign in to your Mandanda Space account
         </p>
       </div>
 

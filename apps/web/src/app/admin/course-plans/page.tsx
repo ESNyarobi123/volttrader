@@ -59,7 +59,7 @@ const emptyDefaults: FormInput = {
   subtitle: "",
   amountMajor: 0,
   currency: DEFAULT_CURRENCY,
-  billingPeriod: "month",
+  billingPeriod: "once",
   featuresText: "",
   ctaLabel: "Get Started",
   ctaHref: "/register",
@@ -238,7 +238,7 @@ export default function AdminCoursePlansPage() {
                   {plan.price.amount <= 0 ? "Free" : formatMoney(plan.price)}
                   {plan.price.amount > 0 ? (
                     <span className="ml-1 text-sm font-medium text-muted-foreground">
-                      /{plan.billingPeriod === "once" ? "once" : plan.billingPeriod}
+                      /{plan.billingPeriod === "once" ? "lifetime" : plan.billingPeriod}
                     </span>
                   ) : null}
                 </p>
@@ -307,9 +307,9 @@ export default function AdminCoursePlansPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="billingPeriod">Billing</Label>
                 <Select id="billingPeriod" {...form.register("billingPeriod")}>
+                  <option value="once">Lifetime (one-time)</option>
                   <option value="month">Monthly</option>
                   <option value="year">Yearly</option>
-                  <option value="once">One-time</option>
                 </Select>
               </div>
               <div className="space-y-1.5">

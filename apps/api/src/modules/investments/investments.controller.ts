@@ -2,7 +2,12 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/c
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Role } from "@volt/config";
-import { createInvestmentSchema, type CreateInvestmentInput } from "@volt/validation";
+import {
+  createInvestmentSchema,
+  investmentUpdateSchema,
+  type CreateInvestmentInput,
+  type InvestmentUpdateInput,
+} from "@volt/validation";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { Auth } from "../../common/decorators/auth.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -18,7 +23,7 @@ const FINANCE_ROLES = [Role.FINANCE_ADMIN, Role.SUPER_ADMIN] as const;
 export class InvestmentsController {
   constructor(private readonly investments: InvestmentsService) {}
 
-  /** Create an investment (WALLET debits now; PAYMENT returns a checkout). */
+  /** Create an investment (WALLET / MANUAL / PAYMENT). */
   @Post()
   @Auth()
   create(
@@ -48,6 +53,23 @@ export class InvestmentsController {
     const pageNum = Math.max(1, Number(page) || 1);
     const size = Math.min(100, Math.max(1, Number(pageSize) || 20));
     return this.investments.listAll(pageNum, size);
+  }
+
+  @Get("admin/:id")
+  @Auth(...FINANCE_ROLES)
+  adminOne(@Param("id") id: string) {
+    return this.investments.getAdmin(id);
+  }
+
+  @Post(":id/updates")
+  @Auth(...FINANCE_ROLES)
+  addUpdate(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(investmentUpdateSchema)) dto: InvestmentUpdateInput,
+    @CurrentUser("id") actorId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    return this.investments.addUpdate(id, dto, actorId, req.ip);
   }
 
   @Get(":id")

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 function periodSuffix(period: CoursePlanView["billingPeriod"]) {
   if (period === "month") return "/month";
   if (period === "year") return "/year";
+  if (period === "once") return " lifetime";
   return "";
 }
 

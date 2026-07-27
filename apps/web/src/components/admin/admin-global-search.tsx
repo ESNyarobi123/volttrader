@@ -225,7 +225,7 @@ export function AdminGlobalSearch() {
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">Searching system…</p>
             ) : hits.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                {debounced ? "No matches for this filter." : "Type to search anything in Volt Trades."}
+                {debounced ? "No matches for this filter." : "Type to search anything in Mandanda Space."}
               </p>
             ) : (
               hits.map((hit) => {

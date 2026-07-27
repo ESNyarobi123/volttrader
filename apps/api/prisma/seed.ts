@@ -364,8 +364,8 @@ async function main() {
       title: "Forex Foundation",
       level: "BEGINNER" as const,
       shortDescription: "Start here: the language, mechanics and mindset of the Forex market.",
-      price: 0n,
-      accessType: "FREE" as const,
+      price: 1900n, // $19.00
+      accessType: "PAID" as const,
       categoryId: forex.id,
     },
     {
@@ -739,72 +739,74 @@ async function main() {
     });
   }
 
-  // --- Forex course plans (landing pricing cards) ---
+  // --- Forex course plans (landing pricing cards) — paid tiers only ---
   const coursePlansSeed = [
-    {
-      name: "Starter",
-      subtitle: "Best for beginners exploring Forex",
-      priceAmount: 0n,
-      billingPeriod: "month",
-      featured: false,
-      sortOrder: 0,
-      features: [
-        "Foundation course access",
-        "Community waitlist invite",
-        "Weekly market notes",
-        "Email support",
-      ],
-      ctaLabel: "Start free",
-    },
     {
       name: "Essential",
       subtitle: "Best for personal skill building",
       priceAmount: 2900n, // $29.00 / month
-      billingPeriod: "month",
+      billingPeriod: "once",
       featured: false,
-      sortOrder: 1,
+      sortOrder: 0,
       features: [
-        "All Starter benefits",
+        "Foundation & psychology courses",
         "Core academy catalogue",
         "Quizzes & progress tracking",
         "Certificate on completion",
-        "Priority lesson updates",
+        "Lifetime access after payment",
       ],
       ctaLabel: "Get started",
     },
     {
       name: "Pro",
       subtitle: "Best for serious traders",
-      priceAmount: 4900n, // $49.00 / month
-      billingPeriod: "month",
+      priceAmount: 4900n, // $49.00
+      billingPeriod: "once",
       featured: true,
-      sortOrder: 2,
+      sortOrder: 1,
       features: [
         "All Essential benefits",
         "Advanced strategy tracks",
         "Live session recordings",
         "Mentor Q&A access",
         "Trading Floor preview",
-        "Priority support",
+        "Lifetime access after payment",
       ],
       ctaLabel: "Choose Pro",
     },
     {
       name: "Mastery",
       subtitle: "Best for teams & power users",
-      priceAmount: 9900n, // $99.00 / month
-      billingPeriod: "month",
+      priceAmount: 9900n, // $99.00
+      billingPeriod: "once",
       featured: false,
-      sortOrder: 3,
+      sortOrder: 2,
       features: [
         "All Pro benefits",
         "Full academy library",
         "1:1 onboarding call",
         "Custom learning path",
         "Early access to new courses",
-        "Dedicated success manager",
+        "Lifetime access after payment",
       ],
       ctaLabel: "Go Mastery",
+    },
+    {
+      name: "Physical Class",
+      subtitle: "Best for in-person Forex coaching",
+      priceAmount: 49900n, // $499.00 one-time
+      billingPeriod: "once",
+      featured: false,
+      sortOrder: 3,
+      features: [
+        "All Mastery online benefits",
+        "In-person classroom sessions",
+        "Live desk coaching",
+        "Printed workbook & materials",
+        "Seat confirmation after payment",
+        "Lifetime online access after payment",
+      ],
+      ctaLabel: "Book Physical Class",
     },
   ];
   for (const plan of coursePlansSeed) {
@@ -827,6 +829,12 @@ async function main() {
       await prisma.coursePlan.create({ data: { name: plan.name, ...data } });
     }
   }
+
+  // No free Forex plan — unpublish legacy Starter / $0 tiers.
+  await prisma.coursePlan.updateMany({
+    where: { OR: [{ name: "Starter" }, { priceAmount: 0n }] },
+    data: { published: false },
+  });
 
   // --- Investment plans (landing pricing cards) ---
   const investmentPlansSeed = [
@@ -945,8 +953,8 @@ async function main() {
   );
 
   const coursePlanMap: Record<string, string> = {
-    "forex-foundation": "Starter",
-    "risk-and-psychology": "Starter",
+    "forex-foundation": "Essential",
+    "risk-and-psychology": "Essential",
     "technical-analysis": "Essential",
     "price-action-essentials": "Essential",
     "market-sessions-liquidity": "Essential",
@@ -963,10 +971,16 @@ async function main() {
       where: { slug },
       data: {
         coursePlanId: planId,
-        accessType: planName === "Starter" ? "FREE" : "PAID",
+        accessType: "PAID",
       },
     });
   }
+
+  // Ensure no FREE academy courses remain in catalogue.
+  await prisma.course.updateMany({
+    where: { accessType: "FREE" },
+    data: { accessType: "PAID" },
+  });
 
   // One OPEN opportunity per management plan (= the investable package on landing/dashboard).
   for (const plan of investmentPlansSeed) {

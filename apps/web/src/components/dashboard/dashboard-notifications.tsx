@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DropdownPortal } from "@/components/shared/dropdown-portal";
@@ -62,6 +63,7 @@ function matchesFilter(n: InboxNotification, filter: FilterId): boolean {
 }
 
 export function DashboardNotifications() {
+  const { user } = useAuth();
   const rootRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,12 @@ export function DashboardNotifications() {
   const inboxQuery = useQuery({
     queryKey: ["notifications", "me"],
     queryFn: () => api.get<InboxNotification[]>("/notifications/me"),
-    refetchInterval: 30_000,
+    enabled: Boolean(user),
+    refetchInterval: user ? 30_000 : false,
+    retry: (count, err) => {
+      if (err instanceof ApiRequestError && err.status === 401) return false;
+      return count < 2;
+    },
   });
 
   const markRead = useMutation({

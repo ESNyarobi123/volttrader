@@ -15,12 +15,12 @@ import {
   Users,
   Menu,
   X,
-  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardNotifications } from "@/components/dashboard/dashboard-notifications";
 import { KycWelcomeDialog } from "@/components/dashboard/kyc-welcome-dialog";
 import { DropdownPortal } from "@/components/shared/dropdown-portal";
+import { Logo } from "@/components/shared/logo";
 import { LordIconScript } from "@/components/shared/lord-icon";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -135,18 +135,24 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             className="pointer-events-none absolute inset-0 overflow-hidden bg-[radial-gradient(90%_120%_at_12%_-20%,rgba(255,255,255,0.22),transparent_55%),radial-gradient(70%_80%_at_92%_0%,rgba(255,255,255,0.12),transparent_50%)]"
           />
           <div className="relative mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-3 sm:h-16 sm:gap-5 sm:px-6 lg:px-10">
-            <Link
-              href="/dashboard"
-              onClick={() => onNavClick("/dashboard")}
-              className="group flex shrink-0 items-center gap-2.5 font-bold tracking-tight"
+            {/* Mobile: menu toggle on the left (logo hidden) */}
+            <button
+              type="button"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20 md:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
             >
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-volt shadow-[0_8px_20px_-8px_rgba(0,0,0,0.45)] ring-1 ring-white/40 transition group-hover:scale-[1.03]">
-                <Zap className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="hidden text-lg tracking-tight sm:inline">
-                Volt<span className="font-semibold text-white/85">Trades</span>
-              </span>
-            </Link>
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+
+            {/* Desktop / tablet: Mandanda Space brand */}
+            <Logo
+              href="/dashboard"
+              onDark
+              className="hidden md:inline-flex"
+              size="md"
+            />
 
             <form
               onSubmit={onSearch}
@@ -163,15 +169,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             </form>
 
             <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
-              <button
-                type="button"
-                className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20 md:hidden"
-                onClick={() => setMobileOpen((v) => !v)}
-                aria-label={mobileOpen ? "Close menu" : "Open menu"}
-              >
-                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-
               <div className="[&_button]:h-10 [&_button]:w-10 [&_button]:rounded-xl [&_button]:border-white/25 [&_button]:bg-white/10 [&_button]:text-white [&_button]:shadow-none [&_button]:hover:border-white/40 [&_button]:hover:bg-white/20">
                 <DashboardNotifications />
               </div>
@@ -301,40 +298,62 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </nav>
 
         {mobileOpen ? (
-          <div className="border-b border-border bg-surface px-3 py-3 md:hidden">
-            <form onSubmit={onSearch} className="relative mb-3">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search your course here…"
-                className="h-11 w-full rounded-full border border-border bg-background py-2 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-volt/40"
-              />
-            </form>
-            <div className="grid gap-1.5">
+          <nav
+            className="border-b border-border bg-surface md:hidden"
+            aria-label="Mobile navigation"
+          >
+            <div className="px-3 pb-2 pt-3">
+              <form onSubmit={onSearch} className="relative">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search your course here…"
+                  className="h-11 w-full rounded-full border border-border bg-background py-2 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-volt/40"
+                />
+              </form>
+            </div>
+            <ul className="flex flex-col gap-0.5 px-2 pb-3">
               {NAV.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(activePath, item.href);
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => onNavClick(item.href)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition",
-                      active
-                        ? "bg-volt/12 text-volt-dim shadow-[inset_0_0_0_1px_hsl(var(--volt)/0.2)]"
-                        : "text-foreground hover:bg-surface-2",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      prefetch
+                      onClick={() => {
+                        onNavClick(item.href);
+                        setMobileOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-2xl px-3.5 py-3.5 text-[15px] font-semibold transition",
+                        active
+                          ? "bg-volt/12 text-volt-dim shadow-[inset_3px_0_0_0_hsl(var(--volt))]"
+                          : "text-foreground hover:bg-surface-2",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "grid h-10 w-10 place-items-center rounded-xl",
+                          active ? "bg-volt/15 text-volt-dim" : "bg-surface-2 text-muted-foreground",
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="flex-1">{item.label}</span>
+                      {active ? (
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-volt-dim">
+                          Now
+                        </span>
+                      ) : null}
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
-          </div>
+            </ul>
+          </nav>
         ) : null}
       </div>
 

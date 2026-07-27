@@ -15,6 +15,7 @@ import {
   Target,
   CalendarClock,
   BadgeDollarSign,
+  MessageSquareText,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -22,7 +23,7 @@ import {
   type Currency,
   type InvestmentStatus as InvestmentStatusType,
 } from "@volt/config";
-import type { InvestmentView, Money } from "@volt/types";
+import type { InvestmentUpdateView, InvestmentView, Money } from "@volt/types";
 import { api, apiErrorMessage } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +70,9 @@ export default function AdminInvestmentsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [settleTarget, setSettleTarget] = useState<AdminInvestmentView | null>(null);
   const [settledMajor, setSettledMajor] = useState("");
+  const [updateTarget, setUpdateTarget] = useState<AdminInvestmentView | null>(null);
+  const [updateTitle, setUpdateTitle] = useState("");
+  const [updateBody, setUpdateBody] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["admin-investments"],
@@ -83,6 +88,17 @@ export default function AdminInvestmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-investments"] });
       setSettleTarget(null);
       setSettledMajor("");
+    },
+  });
+
+  const postUpdate = useMutation({
+    mutationFn: ({ id, title, body }: { id: string; title: string; body: string }) =>
+      api.post<InvestmentUpdateView>(`/investments/${id}/updates`, { title, body }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-investments"] });
+      setUpdateTarget(null);
+      setUpdateTitle("");
+      setUpdateBody("");
     },
   });
 
@@ -294,6 +310,19 @@ export default function AdminInvestmentsPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setUpdateTarget(inv);
+                        setUpdateTitle("");
+                        setUpdateBody("");
+                        postUpdate.reset();
+                      }}
+                    >
+                      <MessageSquareText className="h-3.5 w-3.5" />
+                      Cycle note
+                    </Button>
                     {settleable ? (
                       <Button size="sm" variant="primary" onClick={() => openSettle(inv)}>
                         <BadgeDollarSign className="h-3.5 w-3.5" />
@@ -500,6 +529,89 @@ export default function AdminInvestmentsPage() {
               </DialogFooter>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!updateTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setUpdateTarget(null);
+            setUpdateTitle("");
+            setUpdateBody("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogTitle>Post cycle note</DialogTitle>
+          <DialogDescription>
+            Appears on the member’s position page as an operational update — not live performance
+            or guaranteed returns.
+          </DialogDescription>
+          {updateTarget ? (
+            <p className="text-sm text-muted-foreground">
+              {updateTarget.opportunity.name} · {updateTarget.user?.fullName ?? "Investor"}
+            </p>
+          ) : null}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="update-title">Title</Label>
+              <Input
+                id="update-title"
+                value={updateTitle}
+                onChange={(e) => setUpdateTitle(e.target.value)}
+                placeholder="Week 1 cycle note"
+                maxLength={120}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="update-body">Message</Label>
+              <Textarea
+                id="update-body"
+                value={updateBody}
+                onChange={(e) => setUpdateBody(e.target.value)}
+                placeholder="Short operational update for the member…"
+                rows={4}
+                maxLength={4000}
+              />
+            </div>
+            {postUpdate.error ? (
+              <Alert variant="danger">
+                {apiErrorMessage(postUpdate.error, "Could not post update")}
+              </Alert>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUpdateTarget(null);
+                setUpdateTitle("");
+                setUpdateBody("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={
+                postUpdate.isPending ||
+                updateTitle.trim().length < 3 ||
+                updateBody.trim().length < 3 ||
+                !updateTarget
+              }
+              onClick={() => {
+                if (!updateTarget) return;
+                postUpdate.mutate({
+                  id: updateTarget.id,
+                  title: updateTitle.trim(),
+                  body: updateBody.trim(),
+                });
+              }}
+            >
+              {postUpdate.isPending ? "Posting…" : "Post to member"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
