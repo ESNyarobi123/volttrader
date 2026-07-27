@@ -253,14 +253,14 @@ async function main() {
     update: {
       minDepositMinor: 1000n,
       minWithdrawalMinor: 2500n,
-      depositMobileProvider: "M-Pesa",
-      depositMobileNumber: "255700000001",
-      depositMobileName: "Volt Trades Ltd",
+      depositMobileProvider: "Vodacom",
+      depositMobileNumber: "0756981388",
+      depositMobileName: "Kassim Mandanda",
       depositBankName: "CRDB Bank",
-      depositBankAccount: "0150123456789",
-      depositBankAccountName: "Volt Trades Ltd",
+      depositBankAccount: "10121674985",
+      depositBankAccountName: "Kassim Mandanda",
       depositInstructions:
-        "Send the exact USD amount, then submit your deposit with the transaction ID. Finance confirms before wallet credit.",
+        "Tuma kiasi sahihi (CRDB au Vodacom), kisha wasilisha reference / transaction ID. Wallet itacredit baada ya finance kuthibitisha.",
     },
     create: {
       id: "default",
@@ -272,14 +272,14 @@ async function main() {
       communityOpen: true,
       minDepositMinor: 1000n, // $10.00
       minWithdrawalMinor: 2500n, // $25.00
-      depositMobileProvider: "M-Pesa",
-      depositMobileNumber: "255700000001",
-      depositMobileName: "Volt Trades Ltd",
+      depositMobileProvider: "Vodacom",
+      depositMobileNumber: "0756981388",
+      depositMobileName: "Kassim Mandanda",
       depositBankName: "CRDB Bank",
-      depositBankAccount: "0150123456789",
-      depositBankAccountName: "Volt Trades Ltd",
+      depositBankAccount: "10121674985",
+      depositBankAccountName: "Kassim Mandanda",
       depositInstructions:
-        "Send the exact amount, then submit your deposit with the transaction ID. Finance confirms before wallet credit.",
+        "Tuma kiasi sahihi (CRDB au Vodacom), kisha wasilisha reference / transaction ID. Wallet itacredit baada ya finance kuthibitisha.",
     },
   });
 

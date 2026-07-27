@@ -53,7 +53,7 @@ export class AdminController {
   }
 
   @Patch("settings")
-  @Auth(Role.SUPER_ADMIN)
+  @Auth(Role.SUPER_ADMIN, Role.FINANCE_ADMIN)
   updateSettings(
     @Body(new ZodValidationPipe(platformSettingsUpdateSchema))
     dto: PlatformSettingsUpdateInput,
