@@ -1,87 +1,284 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Play, Volume2, VolumeX } from "lucide-react";
 
 const DEFAULT_YOUTUBE_ID = "nMzMlm-F_yA";
 
-function prefersMobileAutoplayMute() {
-  if (typeof window === "undefined") return false;
-  const ua = navigator.userAgent || "";
-  const mobileUa = /iPhone|iPad|iPod|Android/i.test(ua);
-  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
-  // iOS / Android browsers block unmuted autoplay; mute first so the video still starts.
-  return mobileUa || coarse;
+/** Minimal YouTube IFrame API surface (avoids adding @types/youtube). */
+type YtPlayer = {
+  playVideo: () => void;
+  mute: () => void;
+  unMute: () => void;
+  isMuted: () => boolean;
+  setVolume: (n: number) => void;
+  getPlayerState: () => number;
+  destroy: () => void;
+};
+
+type YtNamespace = {
+  Player: new (
+    el: HTMLElement | string,
+    opts: Record<string, unknown>,
+  ) => YtPlayer;
+  PlayerState: { PLAYING: number; PAUSED: number; CUED: number; ENDED: number };
+};
+
+declare global {
+  interface Window {
+    YT?: YtNamespace;
+    onYouTubeIframeAPIReady?: () => void;
+  }
 }
 
-function embedSrc(youtubeId: string, muted: boolean) {
-  const origin =
-    typeof window !== "undefined" ? encodeURIComponent(window.location.origin) : "";
-  return (
-    `https://www.youtube-nocookie.com/embed/${youtubeId}` +
-    `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${youtubeId}` +
-    `&controls=0&modestbranding=1&rel=0&playsinline=1` +
-    `&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0` +
-    `&enablejsapi=1${origin ? `&origin=${origin}` : ""}`
-  );
-}
-
-/**
- * Hero intro video.
- * - Desktop: sound ON by default (unmuted autoplay usually allowed).
- * - Mobile: muted autoplay first (browser policy), then sound turns ON on the
- *   first tap/scroll/key — unless the user already muted intentionally.
- */
-export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: string }) {
-  const id = youtubeId.trim() || DEFAULT_YOUTUBE_ID;
-  const [muted, setMuted] = useState(false);
-  const userChoseMute = useRef(false);
-  const autoUnmuted = useRef(false);
-  const bootstrapped = useRef(false);
-
-  useEffect(() => {
-    if (bootstrapped.current) return;
-    bootstrapped.current = true;
-
-    if (!prefersMobileAutoplayMute()) {
-      // Desktop / large screens — keep sound on.
-      setMuted(false);
+function loadYouTubeApi(): Promise<YtNamespace> {
+  return new Promise((resolve, reject) => {
+    if (window.YT?.Player) {
+      resolve(window.YT);
       return;
     }
 
-    // Mobile: start muted so autoplay is allowed, then enable sound on first gesture.
-    setMuted(true);
-
-    const enableSound = () => {
-      if (autoUnmuted.current || userChoseMute.current) return;
-      autoUnmuted.current = true;
-      setMuted(false);
-      remove();
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      try {
+        prev?.();
+      } catch {
+        // ignore previous handler errors
+      }
+      if (window.YT?.Player) resolve(window.YT);
+      else reject(new Error("YouTube API missing Player"));
     };
 
-    const remove = () => {
-      window.removeEventListener("pointerdown", enableSound);
-      window.removeEventListener("touchstart", enableSound);
-      window.removeEventListener("keydown", enableSound);
-      window.removeEventListener("scroll", enableSound, true);
+    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      tag.async = true;
+      document.head.appendChild(tag);
+    }
+
+    // Poll in case the script was already loading
+    const started = Date.now();
+    const tick = window.setInterval(() => {
+      if (window.YT?.Player) {
+        window.clearInterval(tick);
+        resolve(window.YT);
+      } else if (Date.now() - started > 12_000) {
+        window.clearInterval(tick);
+        reject(new Error("YouTube API timeout"));
+      }
+    }, 50);
+  });
+}
+
+/**
+ * Hero intro video — autoplay first, sound second.
+ *
+ * Browsers (mobile + many desktop) block unmuted autoplay. We always start
+ * muted so playback begins without a Play tap; sound turns on after the first
+ * user gesture (or via the mute button). Never remount the iframe on mute —
+ * remounting is what forced users to press Play again.
+ */
+export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: string }) {
+  const id = youtubeId.trim() || DEFAULT_YOUTUBE_ID;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YtPlayer | null>(null);
+  const userChoseMute = useRef(false);
+  const soundUnlocked = useRef(false);
+
+  const [muted, setMuted] = useState(true);
+  const [needsTap, setNeedsTap] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let player: YtPlayer | null = null;
+    let retryTimer: number | undefined;
+    let watchTimer: number | undefined;
+
+    const tryPlay = () => {
+      const p = playerRef.current;
+      if (!p) return;
+      try {
+        p.mute();
+        p.playVideo();
+      } catch {
+        // ignore
+      }
     };
 
-    window.addEventListener("pointerdown", enableSound, { once: true, passive: true });
-    window.addEventListener("touchstart", enableSound, { once: true, passive: true });
-    window.addEventListener("keydown", enableSound, { once: true });
-    window.addEventListener("scroll", enableSound, { once: true, passive: true, capture: true });
+    const unlockSound = () => {
+      const p = playerRef.current;
+      if (!p) return;
 
-    return remove;
-  }, []);
+      // Always nudge playback on gesture (covers strict mobile policies).
+      tryPlay();
+
+      if (userChoseMute.current || soundUnlocked.current) {
+        setNeedsTap(false);
+        return;
+      }
+
+      try {
+        p.unMute();
+        p.setVolume(100);
+        soundUnlocked.current = true;
+        setMuted(false);
+        setNeedsTap(false);
+        window.removeEventListener("pointerdown", unlockSound);
+        window.removeEventListener("touchstart", unlockSound);
+        window.removeEventListener("keydown", unlockSound);
+      } catch {
+        setNeedsTap(true);
+      }
+    };
+
+    async function boot() {
+      const host = hostRef.current;
+      if (!host) return;
+
+      let YT: YtNamespace;
+      try {
+        YT = await loadYouTubeApi();
+      } catch {
+        if (!cancelled) setNeedsTap(true);
+        return;
+      }
+      if (cancelled || !hostRef.current) return;
+
+      // Empty mount node — YT replaces it with an iframe.
+      hostRef.current.replaceChildren();
+      const mount = document.createElement("div");
+      mount.className = "h-full w-full";
+      hostRef.current.appendChild(mount);
+
+      player = new YT.Player(mount, {
+        videoId: id,
+        width: "100%",
+        height: "100%",
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          playsinline: 1,
+          loop: 1,
+          playlist: id,
+          iv_load_policy: 3,
+          disablekb: 1,
+          fs: 0,
+          cc_load_policy: 0,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: (e: { target: YtPlayer }) => {
+            if (cancelled) return;
+            playerRef.current = e.target;
+            e.target.mute();
+            e.target.playVideo();
+
+            // Retry if the first autoplay attempt was deferred.
+            retryTimer = window.setTimeout(() => {
+              tryPlay();
+              try {
+                const state = e.target.getPlayerState();
+                if (state !== YT.PlayerState.PLAYING) setNeedsTap(true);
+              } catch {
+                setNeedsTap(true);
+              }
+            }, 900);
+
+            watchTimer = window.setInterval(() => {
+              try {
+                if (e.target.getPlayerState() === YT.PlayerState.PLAYING) {
+                  setNeedsTap(false);
+                }
+              } catch {
+                // ignore
+              }
+            }, 1500);
+          },
+          onStateChange: (e: { data: number; target: YtPlayer }) => {
+            if (cancelled) return;
+            if (e.data === YT.PlayerState.PLAYING) {
+              setNeedsTap(false);
+            }
+            if (e.data === YT.PlayerState.ENDED) {
+              e.target.playVideo();
+            }
+            // Stuck on cue — nudge muted play a few times (don't fight forever).
+            if (e.data === YT.PlayerState.CUED) {
+              window.setTimeout(tryPlay, 250);
+            }
+          },
+          onError: () => {
+            if (!cancelled) setNeedsTap(true);
+          },
+        },
+      });
+      playerRef.current = player;
+    }
+
+    void boot();
+
+    // First gesture: ensure playing + turn sound on (user preference).
+    window.addEventListener("pointerdown", unlockSound, { passive: true });
+    window.addEventListener("touchstart", unlockSound, { passive: true });
+    window.addEventListener("keydown", unlockSound);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("pointerdown", unlockSound);
+      window.removeEventListener("touchstart", unlockSound);
+      window.removeEventListener("keydown", unlockSound);
+      if (retryTimer) window.clearTimeout(retryTimer);
+      if (watchTimer) window.clearInterval(watchTimer);
+      try {
+        player?.destroy();
+      } catch {
+        // ignore
+      }
+      playerRef.current = null;
+    };
+  }, [id]);
 
   const toggleMute = () => {
-    setMuted((prev) => {
-      const next = !prev;
-      // If user turns sound off, don't auto-unmute again.
-      userChoseMute.current = next;
-      if (!next) autoUnmuted.current = true;
-      return next;
-    });
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      p.playVideo();
+      if (muted) {
+        p.unMute();
+        p.setVolume(100);
+        userChoseMute.current = false;
+        soundUnlocked.current = true;
+        setMuted(false);
+      } else {
+        p.mute();
+        userChoseMute.current = true;
+        setMuted(true);
+      }
+      setNeedsTap(false);
+    } catch {
+      setNeedsTap(true);
+    }
+  };
+
+  const tapToPlay = () => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      p.mute();
+      p.playVideo();
+      if (!userChoseMute.current) {
+        p.unMute();
+        p.setVolume(100);
+        soundUnlocked.current = true;
+        setMuted(false);
+      }
+      setNeedsTap(false);
+    } catch {
+      // keep overlay
+    }
   };
 
   return (
@@ -116,15 +313,9 @@ export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: stri
           />
 
           <div className="relative aspect-video w-full max-w-full overflow-hidden">
-            <iframe
-              key={`${id}-${muted ? "m" : "u"}`}
-              title="Mandanda Space intro"
-              src={embedSrc(id, muted)}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen={false}
-              loading="eager"
-              referrerPolicy="strict-origin-when-cross-origin"
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[115%] w-[115%] max-w-none -translate-x-1/2 -translate-y-1/2 border-0"
+            <div
+              ref={hostRef}
+              className="absolute left-1/2 top-1/2 h-[115%] w-[115%] max-w-none -translate-x-1/2 -translate-y-1/2 [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0"
             />
 
             <div
@@ -136,16 +327,30 @@ export function HeroVideo({ youtubeId = DEFAULT_YOUTUBE_ID }: { youtubeId?: stri
               className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-ink/55 to-transparent sm:h-16"
             />
 
+            {needsTap ? (
+              <button
+                type="button"
+                onClick={tapToPlay}
+                className="absolute inset-0 z-30 flex items-center justify-center bg-ink/35 backdrop-blur-[1px]"
+                aria-label="Play video"
+              >
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-ink/85 px-5 py-3 text-sm font-semibold text-white shadow-xl">
+                  <Play className="h-4 w-4 fill-current text-volt" aria-hidden />
+                  Tap to play
+                </span>
+              </button>
+            ) : null}
+
             <button
               type="button"
               onClick={toggleMute}
-              className="absolute bottom-3 right-3 z-30 inline-flex items-center gap-2 rounded-full border border-white/20 bg-ink/80 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur transition hover:bg-ink sm:bottom-4 sm:right-4"
+              className="absolute bottom-3 right-3 z-40 inline-flex items-center gap-2 rounded-full border border-white/20 bg-ink/80 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur transition hover:bg-ink sm:bottom-4 sm:right-4"
               aria-label={muted ? "Turn sound on" : "Mute video"}
             >
               {muted ? (
                 <>
                   <VolumeX className="h-4 w-4 text-volt" aria-hidden />
-                  Sound off · tap on
+                  Sound off
                 </>
               ) : (
                 <>
